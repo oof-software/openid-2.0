@@ -1,0 +1,27 @@
+[package]
+name = "openid_2_0"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1" }
+chrono = { version = "0" }
+dotenv = { version = "0" }
+futures-util = { version = "0" }
+hex = { version = "0" }
+log = { version = "0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+thiserror = { version = "1" }
+lazy-regex = { version = "2" }
+simplelog = { version = "0" }
+reqwest = { version = "0" }
+roxmltree = { version = "0" }
+time = { version = "0" }
+tokio = { version = "1", features = ["full"] }
+actix-web = { version = "4" }
+
+[profile.release]
+strip = true
