@@ -9,7 +9,7 @@ const OPENID_STATIC_PARAMS: [Params<'static>; 4] = [
     // Not using immediate mode
     Params::new(OPENID_MODE, "checkid_setup"),
     // Using OpenID 2.0
-    Params::new(OPENID_NAMESPACE, OPENID_NAMESPACE_2_0),
+    Params::new(OPENID_NAMESPACE, OPENID_AUTH_NAMESPACE),
     Params::new(OPENID_IDENTITY, OPENID_IDENTIFIER_SELECT),
     Params::new(OPENID_CLAIMED_ID, OPENID_IDENTIFIER_SELECT),
 ];
@@ -107,10 +107,7 @@ mod test {
         const RETURN_TO: &str = "http://localhost:3000/auth/steam/callback/";
         const EXPECTED_URL: &str = "https://steamcommunity.com/openid/login?openid.mode=checkid_setup&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.return_to=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsteam%2Fcallback%2F&openid.realm=http%3A%2F%2Flocalhost%3A3000%2F";
 
-        let provider = Provider {
-            version: "http://specs.openid.net/auth/2.0/server".to_string(),
-            endpoint: "https://steamcommunity.com/openid/login".to_string(),
-        };
+        let provider = Provider::steam();
 
         let url = make_auth_req_url(&provider, REALM, RETURN_TO)?;
 

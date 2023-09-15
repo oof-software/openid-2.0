@@ -1,7 +1,7 @@
 use anyhow::Context;
 use serde::Serialize;
 
-use super::constants::OPENID_IDENT_ELEMENT_TYPE;
+use super::constants::{OPENID_AUTH_NAMESPACE, OPENID_PROVIDER_IDENTIFIER};
 use super::xml_util::*;
 
 const NAMESPACE_DEFAULT: &str = "xri://$xrd*($v*2.0)";
@@ -23,6 +23,16 @@ pub(crate) struct Provider {
     pub(crate) endpoint: String,
 }
 
+impl Provider {
+    pub(crate) fn steam() -> Provider {
+        Provider {
+            version: "http://specs.openid.net/auth/2.0/server".to_string(),
+            endpoint: "https://steamcommunity.com/openid/login".to_string(),
+        }
+    }
+}
+
+/// TODO: Change this name so something descriptive
 pub(crate) fn parse_xml(xml: &str) -> anyhow::Result<Provider> {
     let doc = roxmltree::Document::parse(xml).context("couldn't parse input document xml")?;
     let root = doc.root_element();
@@ -36,11 +46,12 @@ pub(crate) fn parse_xml(xml: &str) -> anyhow::Result<Provider> {
     let service_children = get_child_set(&service, &[TAG_NAME_URI, TAG_NAME_TYPE])
         .context("get type and uri as only children of service element")?;
 
-    let version = get_only_text_child(service_children.get(TAG_NAME_TYPE).unwrap())
+    let service_type = get_only_text_child(service_children.get(TAG_NAME_TYPE).unwrap())
         .context("couldn't get text of type element in service")?
         .to_string();
 
-    if version.as_str() != OPENID_IDENT_ELEMENT_TYPE {
+    // https://github.com/havard/node-openid/blob/672ea6e1b25e96c4a8e4f9deb74d38487c85ac32/openid.js#L287-L290
+    if service_type.as_str() != OPENID_PROVIDER_IDENTIFIER {
         anyhow::bail!("text in type tag does not match spec");
     }
 
@@ -48,7 +59,10 @@ pub(crate) fn parse_xml(xml: &str) -> anyhow::Result<Provider> {
         .context("couldn't get text of uri element in service")?
         .to_string();
 
-    Ok(Provider { endpoint, version })
+    Ok(Provider {
+        endpoint,
+        version: OPENID_AUTH_NAMESPACE.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -68,7 +82,7 @@ mod test {
 </xrds:XRDS>"#;
 
         let service = parse_xml(EXAMPLE)?;
-        assert_eq!(service.version, OPENID_IDENT_ELEMENT_TYPE);
+        assert_eq!(service.version, OPENID_AUTH_NAMESPACE);
         assert_eq!(service.endpoint, "https://steamcommunity.com/openid/login");
 
         Ok(())
