@@ -17,6 +17,7 @@ const SOCKET: &str = "127.0.0.1:8080";
 const STEAM_OPENID_LOGIN: &str = "https://steamcommunity.com/openid";
 const REALM: &str = "http://localhost:8080";
 const RETURN_TO: &str = "http://localhost:8080/api/auth/steam/callback";
+const LOGIN: &str = "http://localhost:8080/api/auth/steam/login";
 
 struct SteamState {
     provider: Provider,
@@ -94,6 +95,9 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("couldn't bind to socket `{}`", SOCKET))?;
 
     log::info!("server is listening on {}", SOCKET);
+    log::info!("visit {} and get you will get redirected to steam", LOGIN);
+    log::info!("after authorization you get redirected to {}", RETURN_TO);
+
     server
         .workers(1)
         .run()
