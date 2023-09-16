@@ -72,19 +72,19 @@ impl ResponseError for AppError {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
         #[derive(Serialize)]
         struct ErrorJson {
-            errors: Vec<String>,
-            error: String,
+            error_chain: Vec<String>,
+            status_code: String,
         }
-        impl From<&anyhow::Error> for ErrorJson {
-            fn from(err: &anyhow::Error) -> ErrorJson {
+        impl ErrorJson {
+            fn new(err: &anyhow::Error, status_code: StatusCode) -> ErrorJson {
                 ErrorJson {
-                    errors: err.chain().map(|err| err.to_string()).collect(),
-                    error: format!("{:?}", err),
+                    error_chain: err.chain().map(|err| err.to_string()).collect(),
+                    status_code: format!("https://http.cat/{}", status_code.as_u16()),
                 }
             }
         }
 
-        let error_json = ErrorJson::from(&self.inner);
+        let error_json = ErrorJson::new(&self.inner, self.status_code);
         HttpResponse::build(self.status_code).json(&error_json)
     }
 }

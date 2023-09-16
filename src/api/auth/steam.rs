@@ -3,7 +3,7 @@ use anyhow::Context;
 use reqwest::StatusCode;
 use serde::Deserialize;
 
-use crate::error::{AppResult, IntoAppError};
+use crate::error::{AppResult, IntoAppResult};
 use crate::openid::{verify_against_provider, PositiveAssertion};
 use crate::State;
 
@@ -13,7 +13,7 @@ pub(crate) async fn start_steam_auth(data: web::Data<State>) -> AppResult<HttpRe
 
     let url = data
         .steam
-        .auth_url_with_nonce(&nonce)
+        .auth_url_with_nonce(nonce.as_str())
         .context("couldn't create auth url with nonce")?;
 
     // Could just use redirect but here we can see how redirects work.
@@ -50,10 +50,10 @@ pub(crate) async fn return_steam_auth(
         .validate_steam()
         .context("couldn't validate steam positive assertion")?;
 
-    if !nonces.validate_and_remove(&query.custom_nonce).await {
-        return Err(anyhow::anyhow!("invalid custom nonce")
-            .into_app_error_with_status(StatusCode::BAD_REQUEST));
-    }
+    nonces
+        .validate_and_remove(&query.custom_nonce)
+        .context("couldn't validate the supplied nonce")
+        .into_app_result_with_status(StatusCode::BAD_REQUEST)?;
 
     let result = verify_against_provider(&data.client, &data.steam.provider, &query.openid)
         .await
