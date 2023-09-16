@@ -4,6 +4,8 @@
 //!
 //! <https://planetmath.org/approximatingthebirthdayproblem>
 //!
+//! https://brilliant.org/wiki/birthday-paradox/
+//!
 //! Given a nonce length of 36 bytes (324 bits) and assuming a truly random uniform distribution.
 //!
 //! At least 2^144 nonces must be generated to have a collision probability of >50% on average.
