@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// `openid.ns` <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.2>
 ///
 /// This particular value MUST be present for the request to be a valid OpenID Authentication 2.0 request.
