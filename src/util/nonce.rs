@@ -10,7 +10,7 @@
 //!
 //! At least 2^144 nonces must be generated to have a collision probability of >50% on average.
 //!
-//! That would require generating more than 2^89 nonces every millisecond for 1'000'000 years.
+//! Which would require generating more than 2^89 nonces every millisecond for 1'000'000 years.
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -71,7 +71,7 @@ impl Nonce {
 
 #[derive(Error, Debug)]
 pub(crate) enum NonceError {
-    #[error("the nonce was already used or never")]
+    #[error("the nonce is invalid")]
     Invalid,
     #[error("the nonce has expired")]
     Expired,
