@@ -74,7 +74,8 @@ pub(crate) async fn verify_against_provider(
 mod test {
     use anyhow::Context;
 
-    use crate::openid::{constants::OPENID_AUTH_NAMESPACE, validate::parse_key_value_form};
+    use crate::openid::constants::OPENID_AUTH_NAMESPACE;
+    use crate::openid::validate::parse_key_value_form;
 
     #[test]
     fn key_value_deserialize() -> anyhow::Result<()> {

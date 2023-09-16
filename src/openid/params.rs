@@ -1,6 +1,7 @@
 use anyhow::Context;
 
-use super::{constants::*, Provider};
+use super::constants::*;
+use super::Provider;
 
 /// Static params, missing `return_to` and `realm`.
 ///

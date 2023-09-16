@@ -1,6 +1,7 @@
 use anyhow::Context;
-use simplelog::format_description;
-use simplelog::{ColorChoice, ConfigBuilder, LevelFilter, TermLogger, TerminalMode};
+use simplelog::{
+    format_description, ColorChoice, ConfigBuilder, LevelFilter, TermLogger, TerminalMode,
+};
 
 pub(crate) fn init_logger() -> anyhow::Result<()> {
     let mut config = ConfigBuilder::default();

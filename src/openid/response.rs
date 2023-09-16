@@ -20,17 +20,8 @@ use anyhow::Context;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::openid::constants::{
-    OPENID_ASSOCIATION_HANDLE, OPENID_CLAIMED_ID, OPENID_FIELD_PREFIX, OPENID_IDENTITY,
-    OPENID_OP_ENDPOINT, OPENID_RESPONSE_NONCE, OPENID_RETURN_TO,
-};
-
-use super::{
-    constants::{
-        OPENID_AUTH_NAMESPACE, OPENID_MODE_IDENTIFIER_RESPONSE, OPENID_RESPONSE_NONCE_MAX_LEN,
-    },
-    Provider,
-};
+use super::constants::*;
+use super::Provider;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Nonce {
@@ -239,8 +230,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use anyhow::Context;
+
+    use super::*;
 
     const TEST_URL: &str = "http://localhost:8080/auth/steam/callback/?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.op_endpoint=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Flogin&openid.claimed_id=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198181282063&openid.identity=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198181282063&openid.return_to=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsteam%2Fcallback%2F&openid.response_nonce=2023-09-15T11%3A23%3A46Z7RPb74voq1sqY2sKMcnOe%2FrxwQg%3D&openid.assoc_handle=1234567890&openid.signed=signed%2Cop_endpoint%2Cclaimed_id%2Cidentity%2Creturn_to%2Cresponse_nonce%2Cassoc_handle&openid.sig=SPaIMgwuYCQ2zVlgYmbSAKfD8Ps%3D";
 
