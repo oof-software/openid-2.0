@@ -22,7 +22,7 @@ use thiserror::Error;
 
 const NONCE_BYTES: usize = 36;
 const NONCE_BASE64_LEN: usize = (NONCE_BYTES * 4) / 3;
-const NONCE_MAX_AGE_MS: i64 = 5_000;
+const NONCE_MAX_AGE_MS: i64 = 5_000_000; // 5 Minutes
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Nonce {
