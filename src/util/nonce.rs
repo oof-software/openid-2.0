@@ -4,7 +4,7 @@
 //!
 //! <https://planetmath.org/approximatingthebirthdayproblem>
 //!
-//! https://brilliant.org/wiki/birthday-paradox/
+//! <https://brilliant.org/wiki/birthday-paradox/>
 //!
 //! Given a nonce length of 36 bytes (324 bits) and assuming a truly random uniform distribution.
 //!
@@ -22,6 +22,7 @@ use thiserror::Error;
 
 const NONCE_BYTES: usize = 36;
 const NONCE_BASE64_LEN: usize = (NONCE_BYTES * 4) / 3;
+
 const NONCE_MAX_AGE_MS: i64 = 5_000_000; // 5 Minutes
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -44,7 +45,7 @@ impl Metadata {
         let now = Utc::now().timestamp_millis();
         Metadata { time: now }
     }
-    fn is_expired(&self, now: i64) -> bool {
+    const fn is_expired(&self, now: i64) -> bool {
         now - self.time > NONCE_MAX_AGE_MS
     }
 }
@@ -90,16 +91,15 @@ impl NonceSet {
             .retain(|_, meta| !meta.is_expired(now));
     }
     pub(crate) fn validate_and_remove(&self, nonce: &str) -> Result<(), NonceError> {
-        let nonce = match self.inner.lock().unwrap().remove(nonce) {
-            Some(v) => v,
-            None => return Err(NonceError::Invalid),
+        let Some(nonce) = self.inner.lock().unwrap().remove(nonce) else {
+            return Err(NonceError::Invalid);
         };
         if nonce.is_expired(Utc::now().timestamp_millis()) {
             return Err(NonceError::Expired);
         }
         Ok(())
     }
-    pub(crate) async fn insert_new(&self) -> Nonce {
+    pub(crate) fn insert_new(&self) -> Nonce {
         let nonce = Nonce::random();
         let meta = Metadata::new(&nonce);
         let nonce_copy = nonce.clone();

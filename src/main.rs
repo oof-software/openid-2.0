@@ -78,6 +78,8 @@ use anyhow::Context;
 use openid::{make_auth_req_url, Provider};
 use util::nonce::NonceSet;
 
+use crate::error::error_handler;
+
 const SOCKET: &str = "127.0.0.1:8080";
 
 const STEAM_OPENID_LOGIN: &str = "https://steamcommunity.com/openid";
@@ -149,10 +151,12 @@ async fn main() -> anyhow::Result<()> {
 
     let state = State::new().await.context("couldn't create app state")?;
     let data = web::Data::new(state);
+    log::info!("created app state");
 
     let mut server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::clone(&data))
+            .wrap(error_handler())
             .service(api::init())
     });
 

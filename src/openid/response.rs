@@ -17,11 +17,13 @@
 use std::str::FromStr;
 
 use anyhow::Context;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::constants::*;
 use super::Provider;
+
+const NONCE_MAX_AGE_MS: i64 = 5_000; // 5 Minutes
 
 #[derive(Debug, Clone)]
 pub(crate) struct Nonce {
@@ -38,6 +40,10 @@ impl FromStr for Nonce {
         let last_time_char = nonce.find('Z').context("nonce doesn't adhere to spec")?;
         let (time, salt) = nonce.split_at(last_time_char + 1);
 
+        if salt.is_empty() {
+            anyhow::bail!("response nonce doesn't contain a salt");
+        }
+
         let salt = salt.to_string();
         let time: DateTime<Utc> = DateTime::from(
             DateTime::parse_from_rfc3339(time).context("couldn't parse date and time of nonce")?,
@@ -47,11 +53,14 @@ impl FromStr for Nonce {
     }
 }
 impl Nonce {
-    pub(crate) fn age(&self, now: Option<&DateTime<Utc>>) -> Duration {
-        match now {
-            None => Utc::now().signed_duration_since(self.time),
-            Some(now) => now.signed_duration_since(self.time),
-        }
+    /// # Important!
+    ///
+    /// Timestamp from steam doesn't contain subseconds
+    /// therefore it can be in the future by up to a second.
+    pub(crate) fn is_expired(&self) -> bool {
+        let now = Utc::now().timestamp_millis();
+        let then = self.time.timestamp_millis();
+        dbg!(now - then) > NONCE_MAX_AGE_MS
     }
 }
 
@@ -129,10 +138,9 @@ impl PositiveAssertion {
         fn has_fields(actual: &[String], expected: &[&str]) -> bool {
             /// Check for equality without the prefix
             fn eq(actual: &str, expected: &str) -> bool {
-                match expected.strip_prefix(OPENID_FIELD_PREFIX) {
-                    None => false,
-                    Some(expected_no_prefix) => actual == expected_no_prefix,
-                }
+                expected
+                    .strip_prefix(OPENID_FIELD_PREFIX)
+                    .map_or(false, |expected_no_prefix| actual == expected_no_prefix)
             }
             expected
                 .iter()
@@ -180,6 +188,10 @@ impl PositiveAssertion {
 
         if claimed_id_id != identity_id {
             anyhow::bail!("claimed id doesn't match identity");
+        }
+
+        if self.nonce.is_expired() {
+            anyhow::bail!("too old");
         }
 
         Ok(())

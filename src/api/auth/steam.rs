@@ -9,7 +9,7 @@ use crate::State;
 
 #[actix_web::get("/login")]
 pub(crate) async fn start_steam_auth(data: web::Data<State>) -> AppResult<HttpResponse> {
-    let nonce = data.steam.nonces.insert_new().await;
+    let nonce = data.steam.nonces.insert_new();
 
     let url = data
         .steam
@@ -38,6 +38,8 @@ pub(crate) async fn return_steam_auth(
     data: web::Data<State>,
     query: web::Query<CallbackQuery>,
 ) -> AppResult<HttpResponse> {
+    use std::fmt::Write;
+
     let nonces = &data.steam.nonces;
     let provider = &data.steam.provider;
 
@@ -59,7 +61,6 @@ pub(crate) async fn return_steam_auth(
         .await
         .context("couldn't verify assertion against provider")?;
 
-    use std::fmt::Write;
     let mut body = String::new();
     writeln!(&mut body, "Query: {:#?}", query.0).unwrap();
     writeln!(&mut body, "Response: {:#?}", result).unwrap();

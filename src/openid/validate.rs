@@ -32,7 +32,7 @@ fn parse_key_value_form(text: &str) -> anyhow::Result<VerifyResponse> {
             "is_valid" => {
                 response.is_valid = v
                     .parse()
-                    .context("response field is_valid is not a valid bool")?
+                    .context("response field is_valid is not a valid bool")?;
             }
             _ => anyhow::bail!("response contains unknown field {}", k),
         }

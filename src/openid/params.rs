@@ -25,7 +25,7 @@ impl<'a> Params<'a> {
     pub(crate) const fn new(key: &'a str, value: &'a str) -> Params<'a> {
         Params { key, value }
     }
-    pub(crate) fn into_pair(self) -> (&'a str, &'a str) {
+    pub(crate) const fn into_pair(self) -> (&'a str, &'a str) {
         (self.key, self.value)
     }
 }
