@@ -71,12 +71,30 @@ pub(crate) struct AppError {
     inner: Option<anyhow::Error>,
 }
 
+/// Error type returned from endpoints
 pub(crate) type AppResult<T, E = AppError> = std::result::Result<T, E>;
+
+/// Shorthand methods to return an error with common status codes
+macro_rules! impl_into_app_error {
+    ($method_name:ident, $status_code:path) => {
+        fn $method_name(self) -> AppError {
+            self.into_app_error_with_status($status_code)
+        }
+    };
+}
 
 pub(crate) trait IntoAppError: Sized {
     fn into_app_error(self) -> AppError;
     fn into_app_error_with_status(self, status_code: StatusCode) -> AppError;
+
+    impl_into_app_error!(into_app_error_bad_request, StatusCode::BAD_REQUEST);
+    impl_into_app_error!(into_app_error_unauthorized, StatusCode::UNAUTHORIZED);
+    impl_into_app_error!(
+        into_app_error_temorary_redirect,
+        StatusCode::TEMPORARY_REDIRECT
+    );
 }
+
 pub(crate) trait IntoAppResult<T>: Sized {
     fn into_app_result(self) -> std::result::Result<T, AppError>;
     fn into_app_result_with_status(
