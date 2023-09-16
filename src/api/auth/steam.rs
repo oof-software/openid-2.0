@@ -1,10 +1,10 @@
 use actix_web::{http, web, HttpResponse};
 use anyhow::Context;
 use reqwest::StatusCode;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::error::{AppResult, IntoAppResult};
-use crate::openid::{verify_against_provider, PositiveAssertion};
+use crate::error::{AppResult, IntoAppError};
+use crate::openid::{verify_against_provider, PositiveAssertion, VerifyResponse};
 use crate::State;
 
 #[actix_web::get("/login")]
@@ -23,14 +23,40 @@ pub(crate) async fn start_steam_auth(data: web::Data<State>) -> AppResult<HttpRe
         .finish())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct CallbackQuery {
     /// We append this nonce to the auth request in [`start_steam_auth`]
     /// to [`PositiveAssertion::return_to`] and as per spec it must be preserved.
     custom_nonce: String,
     /// Regular fields expected when callback is called
     #[serde(flatten)]
-    openid: PositiveAssertion,
+    assertion: PositiveAssertion,
+}
+
+#[derive(Serialize)]
+struct CallbackResponse<'a> {
+    response: &'a VerifyResponse,
+    custom_nonce: &'a str,
+    assertion: &'a PositiveAssertion,
+}
+
+async fn validate_positive_assertion(
+    assertion: &PositiveAssertion,
+    state: &State,
+) -> anyhow::Result<VerifyResponse> {
+    assertion
+        .validate(&state.steam.provider)
+        .context("invalid positive assertion (generic)")?;
+    assertion
+        .validate_steam()
+        .context("invalid positive assertion (steam)")?;
+
+    let validation_result =
+        verify_against_provider(&state.client, &state.steam.provider, &assertion)
+            .await
+            .context("couldn't verify assertion against provider")?;
+
+    Ok(validation_result)
 }
 
 #[actix_web::get("/callback")]
@@ -38,34 +64,24 @@ pub(crate) async fn return_steam_auth(
     data: web::Data<State>,
     query: web::Query<CallbackQuery>,
 ) -> AppResult<HttpResponse> {
-    use std::fmt::Write;
-
     let nonces = &data.steam.nonces;
-    let provider = &data.steam.provider;
-
-    query
-        .openid
-        .validate(provider)
-        .context("couldn't validate generic positive assertion")?;
-    query
-        .openid
-        .validate_steam()
-        .context("couldn't validate steam positive assertion")?;
 
     nonces
         .validate_and_remove(&query.custom_nonce)
         .context("couldn't validate the supplied nonce")
-        .into_app_result_with_status(StatusCode::BAD_REQUEST)?;
+        .map_err(|err| err.into_app_error_bad_request())?;
 
-    let result = verify_against_provider(&data.client, &data.steam.provider, &query.openid)
+    let validation_result = validate_positive_assertion(&query.assertion, &data)
         .await
-        .context("couldn't verify assertion against provider")?;
+        .map_err(|err| err.into_app_error_bad_request())?;
 
-    let mut body = String::new();
-    writeln!(&mut body, "Query: {:#?}", query.0).unwrap();
-    writeln!(&mut body, "Response: {:#?}", result).unwrap();
+    let response = CallbackResponse {
+        response: &validation_result,
+        custom_nonce: &query.custom_nonce,
+        assertion: &query.assertion,
+    };
 
-    Ok(HttpResponse::Ok().content_type("text/plain").body(body))
+    Ok(HttpResponse::Ok().json(response))
 }
 
 pub(crate) fn init() -> actix_web::Scope {
