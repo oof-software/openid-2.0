@@ -23,7 +23,9 @@ use serde::{Deserialize, Serialize};
 use super::constants::*;
 use super::Provider;
 
-const NONCE_MAX_AGE_MS: i64 = 5_000; // 5 Minutes
+/// 30 seconds between the user authorizing us and us processing
+/// the response seems reasonable.
+const NONCE_MAX_AGE_MS: i64 = 30_000;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Nonce {
@@ -60,7 +62,7 @@ impl Nonce {
     pub(crate) fn is_expired(&self) -> bool {
         let now = Utc::now().timestamp_millis();
         let then = self.time.timestamp_millis();
-        dbg!(now - then) > NONCE_MAX_AGE_MS
+        now - then > NONCE_MAX_AGE_MS
     }
 }
 
