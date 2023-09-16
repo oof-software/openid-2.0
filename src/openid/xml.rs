@@ -23,6 +23,7 @@ pub(crate) struct Provider {
     pub(crate) endpoint: String,
 }
 
+#[cfg(test)]
 impl Provider {
     pub(crate) fn steam() -> Provider {
         Provider {
