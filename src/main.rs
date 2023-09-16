@@ -70,6 +70,7 @@
 mod api;
 mod error;
 mod openid;
+mod openid_next;
 mod util;
 
 use actix_web::{web, App, HttpServer};
