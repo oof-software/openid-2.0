@@ -33,12 +33,20 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
         return Ok(ErrorHandlerResponse::Response(res.map_into_left_body()));
     };
 
-    // `res` is either the error response generated
-    // from a generic actix::Error or from an AppError (I guess).
+    // Destructuring here is needed because we borrow res through err in the next line
     let (req, res) = res.into_parts();
 
+    // If it's just a status-code without an error attached, it is good to go
+    let Some(err) = res.error() else {
+        err_trace!("to_json_error: it's just a status code 😪");
+        // map_into_left_body means return the already generated response
+        return Ok(ErrorHandlerResponse::Response(
+            ServiceResponse::new(req, res).map_into_left_body(),
+        ));
+    };
+
     err_trace!("to_json_error: it's some other error, convert it! 😈");
-    let err_json_response = ErrorJson::from_response(res).error_response();
+    let err_json_response = ErrorJson::from_actix_error(err).error_response();
 
     // map_into_right_body means return this newly generated response
     Ok(ErrorHandlerResponse::Response(

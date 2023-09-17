@@ -31,16 +31,7 @@ impl ErrorJson {
     }
 
     /// This is not implemented as a trait because it should not be exposed.
-    fn from_status_code(status_code: StatusCode) -> ErrorJson {
-        ErrorJson {
-            error_chain: Vec::new(),
-            status_cat: ErrorJson::status_to_cat(status_code),
-            status_code,
-        }
-    }
-
-    /// This is not implemented as a trait because it should not be exposed.
-    fn from_actix_error(err: &actix_web::Error) -> ErrorJson {
+    pub(super) fn from_actix_error(err: &actix_web::Error) -> ErrorJson {
         if let Some(err) = err.as_error::<AppError>() {
             return ErrorJson::from_app_error(err);
         }
@@ -56,24 +47,7 @@ impl ErrorJson {
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_app_error(err: &AppError) -> ErrorJson {
         err_trace!("ErrorJson::from_app_error");
-        err.inner.as_ref().map_or_else(
-            || ErrorJson::from_status_code(err.status_code),
-            |anyhow| ErrorJson::from_anyhow(anyhow, err.status_code),
-        )
-    }
-
-    /// This is not implemented as a trait because it should not be exposed.
-    ///
-    /// `pub(crate)` because it is needed in [`crate::error::error_handler`]
-    ///
-    /// This consumes the [`actix_web::HttpResponse`] because it replaces it.
-    #[inline]
-    pub(super) fn from_response<B>(res: HttpResponse<B>) -> ErrorJson {
-        err_trace!("ErrorJson::from_response");
-        res.error().map_or_else(
-            || ErrorJson::from_status_code(res.status()),
-            ErrorJson::from_actix_error,
-        )
+        ErrorJson::from_anyhow(&err.inner, err.status_code)
     }
 }
 

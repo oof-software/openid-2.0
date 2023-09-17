@@ -6,7 +6,7 @@ use crate::error::error_json::ErrorJson;
 #[derive(Debug)]
 pub(crate) struct AppError {
     pub(super) status_code: StatusCode,
-    pub(super) inner: Option<anyhow::Error>,
+    pub(super) inner: anyhow::Error,
 }
 
 /// Error type returned from endpoints
@@ -43,7 +43,7 @@ impl IntoAppError for anyhow::Error {
         err_trace!("IntoAppError for anyhow::Error");
         AppError {
             status_code,
-            inner: Some(self),
+            inner: self,
         }
     }
 }
@@ -54,25 +54,14 @@ impl From<anyhow::Error> for AppError {
         err_trace!("AppError::From<anyhow::Error>");
         AppError {
             status_code: StatusCode::INTERNAL_SERVER_ERROR,
-            inner: Some(err),
-        }
-    }
-}
-
-/// If no error is given, use an empty error chain
-impl From<StatusCode> for AppError {
-    fn from(status_code: StatusCode) -> AppError {
-        err_trace!("AppError::From<StatusCode>");
-        AppError {
-            status_code,
-            inner: None,
+            inner: err,
         }
     }
 }
 
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner.as_ref().map_or(Ok(()), |v| v.fmt(f))
+        self.inner.fmt(f)
     }
 }
 
