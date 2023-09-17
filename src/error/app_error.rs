@@ -41,7 +41,7 @@ pub(crate) trait IntoAppError: Sized {
 
 impl IntoAppError for anyhow::Error {
     fn into_app_error_with_status(self, status_code: StatusCode) -> AppError {
-        err_trace!("IntoAppError for anyhow::Error");
+        err_trace!("Convert anyhow::Error -> AppError (custom status code)");
         AppError {
             status_code,
             inner: self,
@@ -52,7 +52,7 @@ impl IntoAppError for anyhow::Error {
 /// If no status code is given, use INTERNAL_SERVER_ERROR
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> AppError {
-        err_trace!("AppError::From<anyhow::Error>");
+        err_trace!("Convert anyhow::Error -> AppError (default status code)");
         AppError {
             status_code: StatusCode::INTERNAL_SERVER_ERROR,
             inner: err,
@@ -72,7 +72,7 @@ impl ResponseError for AppError {
     }
 
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        err_trace!("AppError::error_response");
+        err_trace!("Convert AppError -> (ErrorJson) -> HttpResponse");
         ErrorJson::from_app_error(self).error_response()
     }
 }

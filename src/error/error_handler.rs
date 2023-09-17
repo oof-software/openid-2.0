@@ -16,6 +16,9 @@ where
         .is_some()
 }
 
+/// If the error handler returns an `Err(InnerError)`, it must implement [`ResponseError`] by
+/// the constraints on an error handler. The [`ResponseError::error_response`] method is then
+/// invoked on the `InnerError` and that is returned.
 #[allow(clippy::unnecessary_wraps)]
 fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
     // Sanity check, this should never happend because API endpoints should
@@ -23,12 +26,14 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
     //
     // And we don't even expose ErrorJson, so this really shouldn't happen.
     if is_generated_from::<ErrorJson, _>(&res) {
-        err_trace!("to_json_error: it's a json error??!!? 😨");
+        log::error!("Never return an ErrorJson, return an AppError instead!");
+        // map_into_left_body means return the already generated response
+        return Ok(ErrorHandlerResponse::Response(res.map_into_left_body()));
     }
 
     // App error is already good to go.
     if is_generated_from::<AppError, _>(&res) {
-        err_trace!("to_json_error: it's an app error, let it through 😏");
+        err_trace!("Error cause is an app error, let it through 😏");
         // map_into_left_body means return the already generated response
         return Ok(ErrorHandlerResponse::Response(res.map_into_left_body()));
     };
@@ -36,9 +41,9 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
     // Destructuring here is needed because we borrow res through err in the next line
     let (req, res) = res.into_parts();
 
-    // If it's just a status-code without an error attached, it is good to go
+    // If it's just a status-code without an error attached, we still need to do one more thing...
     let Some(err) = res.error() else {
-        err_trace!("to_json_error: it's just a status code... Add the cat! 🤡");
+        err_trace!("No error cause, just a status code... Add the cat! 🤡");
         let err_json_response = ErrorJson::from_status_code(res.status()).error_response();
 
         // map_into_right_body means return this newly generated response
@@ -47,7 +52,7 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
         ));
     };
 
-    err_trace!("to_json_error: it's some other error, convert it! 😈");
+    err_trace!("Error cause is some other error, convert it! 😈");
     let err_json_response = ErrorJson::from_actix_error(err).error_response();
 
     // map_into_right_body means return this newly generated response

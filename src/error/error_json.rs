@@ -31,8 +31,13 @@ impl ErrorJson {
     }
 
     /// This is not implemented as a trait because it should not be exposed.
+    ///
+    /// ONLY call this, if the underlying error is not an [`AppError`]! [`AppError`]
+    /// implements [`ResponseError`] and converts itself to an [`ErrorJson`].
     pub(super) fn from_actix_error(err: &actix_web::Error) -> ErrorJson {
         if let Some(err) = err.as_error::<AppError>() {
+            log::error!("AppError into actix_web::Error into ErrorJson is bad!");
+            log::error!("Use AppError into ErrorJson instead!");
             return ErrorJson::from_app_error(err);
         }
 
@@ -46,16 +51,17 @@ impl ErrorJson {
 
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_status_code(status_code: StatusCode) -> ErrorJson {
+        err_trace!("Convert StatusCode -> ErrorJson");
         ErrorJson {
             error_chain: vec![],
-            status_code: status_code,
             status_cat: ErrorJson::status_to_cat(status_code),
+            status_code: status_code,
         }
     }
 
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_app_error(err: &AppError) -> ErrorJson {
-        err_trace!("ErrorJson::from_app_error");
+        err_trace!("Convert AppError -> ErrorJson");
         ErrorJson::from_anyhow(&err.inner, err.status_code)
     }
 }
@@ -73,7 +79,7 @@ impl ResponseError for ErrorJson {
     }
 
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        err_trace!("ErrorJson::error_response");
+        err_trace!("Convert ErrorJson -> HttpResponse");
         HttpResponse::build(self.status_code).json(self)
     }
 }
