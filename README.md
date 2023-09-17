@@ -2,6 +2,13 @@
 
 Based on [`node-openid`](https://github.com/havard/node-openid) and tries to be at least a tiny (🤏) bit spec compliant.
 
+## Constraints
+
+- Always using the `checkid_setup` mode (not using immediate mode)
+- No extensions are implemented
+- I _think_ the `strict` mode of `node-openid` corresponds to enforcing encryption which we do
+  - The constructed `reqwest::Client` uses at least `TLSv1.2` and is set to HTTPS only.
+
 ## Steam Authetication
 
 1) The user visits `/api/auth/steam/login`
