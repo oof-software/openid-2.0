@@ -102,7 +102,8 @@ impl SteamState {
             .await
             .context("couldn't read response body as text")?;
 
-        let provider = openid::parse_xml(&xml).context("couldn't parse response xml as service")?;
+        let provider =
+            Provider::from_xml(&xml).context("couldn't parse response xml as service")?;
 
         let auth_url = make_auth_req_url(&provider, REALM, RETURN_TO)
             .context("couldn't create auth request url")?;

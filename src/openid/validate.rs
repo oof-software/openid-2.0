@@ -47,7 +47,7 @@ pub(crate) async fn verify_against_provider(
     provider: &Provider,
     assertion: &PositiveAssertion,
 ) -> anyhow::Result<VerifyResponse> {
-    let url = provider.endpoint.as_str();
+    let url = provider.service.endpoint.as_str();
 
     // https://github.com/havard/node-openid/blob/672ea6e1b25e96c4a8e4f9deb74d38487c85ac32/openid.js#L1250-L1253
     // https://openid.net/specs/openid-authentication-2_0.html#rfc.section.11.4.2.1

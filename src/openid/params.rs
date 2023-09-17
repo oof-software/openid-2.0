@@ -82,7 +82,7 @@ pub(crate) fn make_auth_req_url(
     let params = make_auth_req_params(realm.as_str(), return_to.as_str());
     let params: Vec<_> = params.into_iter().map(Params::into_pair).collect();
 
-    let url = reqwest::Url::parse_with_params(&provider.endpoint, params)
+    let url = reqwest::Url::parse_with_params(&provider.service.endpoint, params)
         .context("couldn't parse provider endpoint with query params into a url")?;
 
     Ok(url.into())

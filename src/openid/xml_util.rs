@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
+use roxmltree::{Document, Node};
 
 #[derive(Clone)]
 pub(crate) struct Namespace<'a> {
@@ -20,10 +21,7 @@ impl<'a> Namespace<'a> {
 /// Sort namespaces by their names and then compare them
 ///
 /// Allocates O(n) memory where n is the maximum number of namespaces
-pub(crate) fn namespaces_eq(
-    doc: &roxmltree::Document,
-    namespaces: &[Namespace],
-) -> anyhow::Result<()> {
+pub(crate) fn namespaces_eq(doc: &Document, namespaces: &[Namespace]) -> anyhow::Result<()> {
     let root = doc.root_element();
     let mut root_namespaces = root.namespaces().collect::<Vec<_>>();
     root_namespaces.sort_unstable_by(|lhs, rhs| lhs.name().cmp(&rhs.name()));
@@ -43,12 +41,25 @@ pub(crate) fn namespaces_eq(
     Ok(())
 }
 
-/// Check that the node has exactly one child with the given tag name
-/// that is an element and return that one.
-pub(crate) fn get_only_child<'a, 'input>(
-    node: &roxmltree::Node<'a, 'input>,
+/// Check that
+/// - the node has at most one child with the given tag name
+/// and return it
+pub(crate) fn get_child_opt<'a, 'input>(
+    node: Node<'a, 'input>,
     tag_name: &str,
-) -> anyhow::Result<roxmltree::Node<'a, 'input>> {
+) -> Option<Node<'a, 'input>> {
+    node.children()
+        .find(|c| c.is_element() && c.tag_name().name() == tag_name)
+}
+
+/// Check that
+/// - the node has exactly one child and
+/// - the child has the given tag name
+/// and return it
+pub(crate) fn get_only_child<'a, 'input>(
+    node: Node<'a, 'input>,
+    tag_name: &str,
+) -> anyhow::Result<Node<'a, 'input>> {
     let mut children = node.children().filter(|c| c.is_element());
     let first = children.next().context("node doesn't have any children")?;
     if children.next().is_some() {
@@ -60,9 +71,30 @@ pub(crate) fn get_only_child<'a, 'input>(
     Ok(first)
 }
 
-/// Check that the node has exactly one child that is a text
-/// element and return that one.
-pub(crate) fn get_only_text_child<'a>(node: &roxmltree::Node<'a, '_>) -> anyhow::Result<&'a str> {
+/// Check that
+/// - all children have the given tag name
+/// and return then
+pub(crate) fn get_children_exact<'a, 'input>(
+    node: Node<'a, 'input>,
+    tag_name: &str,
+) -> anyhow::Result<Vec<Node<'a, 'input>>> {
+    let children = node.children().filter(|c| c.is_element());
+    let mut buffer = Vec::new();
+
+    for child in children {
+        if child.tag_name().name() != tag_name {
+            anyhow::bail!("node has a child with an unexpected tag name");
+        }
+        buffer.push(child);
+    }
+
+    Ok(buffer)
+}
+
+/// Check that
+/// - the node has exactly one text child
+/// and return that one.
+pub(crate) fn get_only_text_child<'a>(node: Node<'a, '_>) -> anyhow::Result<&'a str> {
     let mut children = node.children().filter(|c| c.is_text());
     let first = children.next().context("node doesn't have any children")?;
     if children.next().is_some() {
@@ -77,9 +109,9 @@ pub(crate) fn get_only_text_child<'a>(node: &roxmltree::Node<'a, '_>) -> anyhow:
 
 /// Check that the node has exactly the children with given tag names, not more and not less.
 pub(crate) fn get_child_set<'a, 'input, 'str>(
-    node: &roxmltree::Node<'a, 'input>,
+    node: Node<'a, 'input>,
     tag_names: &[&'str str],
-) -> anyhow::Result<HashMap<&'str str, roxmltree::Node<'a, 'input>>> {
+) -> anyhow::Result<HashMap<&'str str, Node<'a, 'input>>> {
     let mut children_with_names = node
         .children()
         .filter(|c| c.is_element())

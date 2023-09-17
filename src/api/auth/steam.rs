@@ -52,7 +52,7 @@ async fn validate_positive_assertion(
         .context("invalid positive assertion (steam)")?;
 
     let validation_result =
-        verify_against_provider(&state.client, &state.steam.provider, &assertion)
+        verify_against_provider(&state.client, &state.steam.provider, assertion)
             .await
             .context("couldn't verify assertion against provider")?;
 

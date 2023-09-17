@@ -127,3 +127,6 @@ pub(crate) const OPENID_SIGNATURE: &str = "openid.sig";
 pub(crate) const OPENID_RESPONSE_NONCE_MAX_LEN: usize = 255;
 
 pub(crate) const OPENID_FIELD_PREFIX: &str = "openid.";
+
+/// <http://docs.oasis-open.org/xri/2.0/specs/cd02/xri-resolution-V2.0-cd-02.html#_Ref124065812>
+pub(crate) const OPENID_PRIORITY_ATTRIBUTE: &str = "priority";

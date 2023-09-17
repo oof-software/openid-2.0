@@ -14,57 +14,15 @@
 //! }
 //! ```
 
-use std::str::FromStr;
+use std::borrow::Borrow;
 
 use anyhow::Context;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::comma_separated::CommaSeparated;
 use super::constants::*;
+use super::nonce::Nonce;
 use super::Provider;
-
-/// 30 seconds between the user authorizing us and us processing
-/// the response seems reasonable.
-const NONCE_MAX_AGE_MS: i64 = 30_000;
-
-#[derive(Debug, Clone)]
-pub(crate) struct Nonce {
-    pub(crate) time: DateTime<Utc>,
-    pub(crate) salt: String,
-}
-impl FromStr for Nonce {
-    type Err = anyhow::Error;
-    fn from_str(nonce: &str) -> Result<Self, Self::Err> {
-        if nonce.len() > OPENID_RESPONSE_NONCE_MAX_LEN {
-            anyhow::bail!("response nonce is too long");
-        }
-
-        let last_time_char = nonce.find('Z').context("nonce doesn't adhere to spec")?;
-        let (time, salt) = nonce.split_at(last_time_char + 1);
-
-        if salt.is_empty() {
-            anyhow::bail!("response nonce doesn't contain a salt");
-        }
-
-        let salt = salt.to_string();
-        let time: DateTime<Utc> = DateTime::from(
-            DateTime::parse_from_rfc3339(time).context("couldn't parse date and time of nonce")?,
-        );
-
-        Ok(Nonce { time, salt })
-    }
-}
-impl Nonce {
-    /// # Important!
-    ///
-    /// Timestamp from steam doesn't contain subseconds
-    /// therefore it can be in the future by up to a second.
-    pub(crate) fn is_expired(&self) -> bool {
-        let now = Utc::now().timestamp_millis();
-        let then = self.time.timestamp_millis();
-        now - then > NONCE_MAX_AGE_MS
-    }
-}
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.10.1>
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -81,7 +39,7 @@ pub(crate) struct PositiveAssertion {
 
     /// See [`crate::openid::constants::OPENID_OP_ENDPOINT`]
     #[serde(rename = "openid.op_endpoint")]
-    provider_endpoint: String,
+    service_endpoint: String,
 
     /// See [`crate::openid::constants::OPENID_CLAIMED_ID`]
     #[serde(rename = "openid.claimed_id")]
@@ -99,8 +57,6 @@ pub(crate) struct PositiveAssertion {
 
     /// See [`crate::openid::constants::OPENID_RESPONSE_NONCE`]
     #[serde(rename = "openid.response_nonce")]
-    #[serde(serialize_with = "serialize_nonce")]
-    #[serde(deserialize_with = "deserialize_nonce")]
     nonce: Nonce,
 
     /// See [`crate::openid::constants::OPENID_ASSOCIATION_HANDLE`]
@@ -109,9 +65,7 @@ pub(crate) struct PositiveAssertion {
 
     /// See [`crate::openid::constants::OPENID_SIGNED_FIELDS`]
     #[serde(rename = "openid.signed")]
-    #[serde(serialize_with = "serialize_comma_separated")]
-    #[serde(deserialize_with = "deserialize_comma_separated")]
-    signed_fields: Vec<String>,
+    signed_fields: CommaSeparated,
 
     /// See [`crate::openid::constants::OPENID_SIGNATURE`]
     #[serde(rename = "openid.sig")]
@@ -155,13 +109,13 @@ impl PositiveAssertion {
         if self.mode != OPENID_MODE_IDENTIFIER_RESPONSE {
             anyhow::bail!("invalid mode");
         }
-        if self.provider_endpoint != provider.endpoint {
+        if self.service_endpoint != provider.service.endpoint {
             anyhow::bail!("provider endpoint doesn't match");
         }
         if self.claimed_id != self.identity {
             anyhow::bail!("claimed identity doesn't match identity");
         }
-        if !has_fields(&self.signed_fields, &EXPECTED_SIGNED_FIELDS) {
+        if !has_fields(self.signed_fields.borrow(), &EXPECTED_SIGNED_FIELDS) {
             anyhow::bail!("fields that should be signed aren't signed");
         }
         if self.signature.is_empty() {
@@ -204,57 +158,64 @@ impl PositiveAssertion {
     }
 }
 
-/// Used to deserialize the comma-separated list of signed fields in [`PositiveAssertion::signed_fields`].
-fn deserialize_comma_separated<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let str = String::deserialize(deserializer)?;
-    let parts = str.split(',').map(|s| s.to_string());
-    Ok(parts.collect())
-}
-fn serialize_comma_separated<S>(data: &[String], serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let joined = data.join(",");
-    serializer.serialize_str(&joined)
-}
-
-/// Used to deserialize the nonce in [`PositiveAssertion::nonce`]
-fn deserialize_nonce<'de, D>(deserializer: D) -> Result<Nonce, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let str = String::deserialize(deserializer)?;
-    let nonce: Nonce = str.parse().map_err(serde::de::Error::custom)?;
-    Ok(nonce)
-}
-fn serialize_nonce<S>(data: &Nonce, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    // Make sure it matches the expected format of
-    // `2001-02-03T04:05:06Z`
-    use chrono::SecondsFormat::Secs;
-    let mut buffer = data.time.to_rfc3339_opts(Secs, true);
-    buffer.push_str(&data.salt);
-    serializer.serialize_str(&buffer)
-}
-
 #[cfg(test)]
 mod test {
     use anyhow::Context;
+    use chrono::Utc;
 
     use super::*;
 
     const TEST_URL: &str = "http://localhost:8080/auth/steam/callback/?openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.mode=id_res&openid.op_endpoint=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Flogin&openid.claimed_id=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198181282063&openid.identity=https%3A%2F%2Fsteamcommunity.com%2Fopenid%2Fid%2F76561198181282063&openid.return_to=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fsteam%2Fcallback%2F&openid.response_nonce=2023-09-15T11%3A23%3A46Z7RPb74voq1sqY2sKMcnOe%2FrxwQg%3D&openid.assoc_handle=1234567890&openid.signed=signed%2Cop_endpoint%2Cclaimed_id%2Cidentity%2Creturn_to%2Cresponse_nonce%2Cassoc_handle&openid.sig=SPaIMgwuYCQ2zVlgYmbSAKfD8Ps%3D";
 
+    const TEST_PARAMS_NONCE_SALT: &str = "7RPb74voq1sqY2sKMcnOe/rxwQg=";
+    const TEST_PARAMS_ENDPOINT: &str = "https://steamcommunity.com/openid/login";
+    const TEST_PARAMS_ID: &str = "https://steamcommunity.com/openid/id/76561198181282063";
+    const TEST_PARAMS_RETURN_TO: &str = "http://localhost:3000/auth/steam/callback/";
+    const TEST_PARAMS_ASSOC_HANDLE: &str = "1234567890";
+    const TEST_PARAMS_SIGNED_FIELDS: &str =
+        "signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle";
+    const TEST_PARAMS_SIGNATURE: &str = "SPaIMgwuYCQ2zVlgYmbSAKfD8Ps=";
+    const TEST_PARAMS_NONCE: &str = "2023-09-15T11:23:46Z7RPb74voq1sqY2sKMcnOe/rxwQg=";
+    const TEST_PARAMS_BASE_URL: &str = "http://localhost:8080";
+
+    const TEST_PARAMS_WITHOUT_NONCE: [(&str, &str); 10] = [
+        (OPENID_NAMESPACE, OPENID_AUTH_NAMESPACE),
+        (OPENID_MODE, OPENID_MODE_IDENTIFIER_RESPONSE),
+        (OPENID_OP_ENDPOINT, TEST_PARAMS_ENDPOINT),
+        (OPENID_CLAIMED_ID, TEST_PARAMS_ID),
+        (OPENID_IDENTITY, TEST_PARAMS_ID),
+        (OPENID_RETURN_TO, TEST_PARAMS_RETURN_TO),
+        (OPENID_RESPONSE_NONCE, ""),
+        (OPENID_ASSOCIATION_HANDLE, TEST_PARAMS_ASSOC_HANDLE),
+        (OPENID_SIGNED_FIELDS, TEST_PARAMS_SIGNED_FIELDS),
+        (OPENID_SIGNATURE, TEST_PARAMS_SIGNATURE),
+    ];
+
+    fn make_test_url() -> anyhow::Result<String> {
+        let mut params = TEST_PARAMS_WITHOUT_NONCE.map(|(k, v)| (k.to_string(), v.to_string()));
+        let nonce_url = params
+            .iter_mut()
+            .find(|(k, _)| k == OPENID_RESPONSE_NONCE)
+            .context("nonce field not found")?;
+
+        let nonce = Nonce::new(TEST_PARAMS_NONCE_SALT.to_string(), Utc::now());
+
+        // This relies on `to_string` resulting in the same
+        // representation as serialized with serde_urlencoded!
+        nonce_url.1 = nonce.to_string();
+
+        let url = reqwest::Url::parse_with_params(TEST_PARAMS_BASE_URL, &params)
+            .context("couldn't serialize whole quert into url")?;
+
+        Ok(url.into())
+    }
+
     #[test]
-    fn serialize_deserialize() -> anyhow::Result<()> {
+    fn validate_steam() -> anyhow::Result<()> {
         let provider = Provider::steam();
 
-        let parsed = reqwest::Url::parse(TEST_URL).context("couldn't parse url")?;
+        let test_url = make_test_url().context("couldn't make test url")?;
+        let parsed = reqwest::Url::parse(&test_url).context("couldn't parse url")?;
         let query = parsed.query().context("url doesn't contain a query")?;
 
         let parsed: PositiveAssertion = serde_urlencoded::from_str(query)
@@ -269,7 +230,32 @@ mod test {
 
         let as_query = serde_urlencoded::to_string(&parsed)
             .context("couldn't encode positive asstion back into a query")?;
+        assert_eq!(query, as_query);
 
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_deserialize() -> anyhow::Result<()> {
+        let parsed = reqwest::Url::parse(TEST_URL).context("couldn't parse url")?;
+        let query = parsed.query().context("url doesn't contain a query")?;
+
+        let parsed: PositiveAssertion = serde_urlencoded::from_str(query)
+            .context("couldn't parse positive assertion from query")?;
+
+        assert_eq!(parsed.namespace, OPENID_AUTH_NAMESPACE);
+        assert_eq!(parsed.mode, OPENID_MODE_IDENTIFIER_RESPONSE);
+        assert_eq!(parsed.service_endpoint, TEST_PARAMS_ENDPOINT);
+        assert_eq!(parsed.claimed_id, TEST_PARAMS_ID);
+        assert_eq!(parsed.identity, TEST_PARAMS_ID);
+        assert_eq!(parsed.return_to, TEST_PARAMS_RETURN_TO);
+        assert_eq!(parsed.nonce.to_string(), TEST_PARAMS_NONCE);
+        assert_eq!(parsed.association_handle, TEST_PARAMS_ASSOC_HANDLE);
+        assert_eq!(parsed.signed_fields.to_string(), TEST_PARAMS_SIGNED_FIELDS);
+        assert_eq!(parsed.signature, TEST_PARAMS_SIGNATURE);
+
+        let as_query = serde_urlencoded::to_string(&parsed)
+            .context("couldn't encode positive asstion back into a query")?;
         assert_eq!(query, as_query);
 
         Ok(())
