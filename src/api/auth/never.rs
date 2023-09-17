@@ -20,7 +20,7 @@ could have been a keyboard error caused by some form of cosmic radiation; \
 this would fit nicely with my interplanetary alien-being theory. If you \
 think this might be the cause, perhaps you could create some sort of \
 underground bunker to help shield yourself from it. I don't know that \
-it will work, but, you will probably feel better if you try something. \
+it will work, but, you will probably feel better if you try something.\
 ";
 
 #[actix_web::get("/login")]
