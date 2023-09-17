@@ -30,6 +30,7 @@ macro_rules! impl_into_app_error {
 pub(crate) trait IntoAppError: Sized {
     fn into_app_error_with_status(self, status_code: StatusCode) -> AppError;
 
+    impl_into_app_error!(into_app_error_im_a_teapot, StatusCode::IM_A_TEAPOT);
     impl_into_app_error!(into_app_error_bad_request, StatusCode::BAD_REQUEST);
     impl_into_app_error!(into_app_error_unauthorized, StatusCode::UNAUTHORIZED);
     impl_into_app_error!(
