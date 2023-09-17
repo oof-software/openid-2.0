@@ -33,7 +33,7 @@ impl ErrorJson {
 
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_status_code(status_code: StatusCode) -> ErrorJson {
-        log::info!("[err-trace] ErrorJson::From<StatusCode>");
+        log::info!("[err-trace] ErrorJson::from_status_code");
         ErrorJson {
             error_chain: Vec::new(),
             status_cat: ErrorJson::status_to_cat(status_code),
@@ -43,7 +43,7 @@ impl ErrorJson {
 
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_app_error(err: &AppError) -> ErrorJson {
-        log::info!("[err-trace] ErrorJson::From<AppError>");
+        log::info!("[err-trace] ErrorJson::from_app_error");
         err.inner.as_ref().map_or_else(
             || ErrorJson::from_status_code(err.status_code),
             |anyhow| ErrorJson::from_anyhow(anyhow, err.status_code),

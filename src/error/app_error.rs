@@ -40,7 +40,7 @@ pub(crate) trait IntoAppError: Sized {
 
 impl IntoAppError for anyhow::Error {
     fn into_app_error_with_status(self, status_code: StatusCode) -> AppError {
-        log::info!("[err-trace] into_app_error_with_status for anyhow::Error");
+        log::info!("[err-trace] IntoAppError for anyhow::Error");
         AppError {
             status_code,
             inner: Some(self),
