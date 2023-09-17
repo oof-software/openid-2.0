@@ -8,9 +8,9 @@ use crate::error::AppError;
 #[derive(Debug, Serialize)]
 pub(super) struct ErrorJson {
     error_chain: Vec<String>,
+    status_cat: String,
     #[serde(skip)]
     status_code: StatusCode,
-    status_cat: String,
 }
 
 impl ErrorJson {
@@ -41,6 +41,15 @@ impl ErrorJson {
             error_chain: vec![err.to_string()],
             status_cat: ErrorJson::status_to_cat(status_code),
             status_code,
+        }
+    }
+
+    /// This is not implemented as a trait because it should not be exposed.
+    pub(super) fn from_status_code(status_code: StatusCode) -> ErrorJson {
+        ErrorJson {
+            error_chain: vec![],
+            status_code: status_code,
+            status_cat: ErrorJson::status_to_cat(status_code),
         }
     }
 

@@ -38,10 +38,12 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
 
     // If it's just a status-code without an error attached, it is good to go
     let Some(err) = res.error() else {
-        err_trace!("to_json_error: it's just a status code 😪");
-        // map_into_left_body means return the already generated response
+        err_trace!("to_json_error: it's just a status code... Add the cat! 🤡");
+        let err_json_response = ErrorJson::from_status_code(res.status()).error_response();
+
+        // map_into_right_body means return this newly generated response
         return Ok(ErrorHandlerResponse::Response(
-            ServiceResponse::new(req, res).map_into_left_body(),
+            ServiceResponse::new(req, err_json_response).map_into_right_body(),
         ));
     };
 
