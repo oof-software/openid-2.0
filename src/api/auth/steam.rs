@@ -7,7 +7,6 @@ use crate::error::{AppResult, IntoAppError};
 use crate::openid::{verify_against_provider, PositiveAssertion, VerifyResponse};
 use crate::State;
 
-#[actix_web::get("/login")]
 pub(crate) async fn start_steam_auth(data: web::Data<State>) -> AppResult<HttpResponse> {
     let nonce = data.steam.nonces.insert_new();
 
@@ -59,7 +58,6 @@ async fn validate_positive_assertion(
     Ok(validation_result)
 }
 
-#[actix_web::get("/callback")]
 pub(crate) async fn return_steam_auth(
     data: web::Data<State>,
     query: web::Query<CallbackQuery>,
@@ -85,5 +83,6 @@ pub(crate) async fn return_steam_auth(
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(start_steam_auth).service(return_steam_auth);
+    cfg.service(web::resource("/callback").route(web::get().to(return_steam_auth)))
+        .service(web::resource("/login").route(web::get().to(start_steam_auth)));
 }

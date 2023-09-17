@@ -23,11 +23,10 @@ underground bunker to help shield yourself from it. I don't know that \
 it will work, but, you will probably feel better if you try something.\
 ";
 
-#[actix_web::get("/login")]
 pub(crate) async fn start_never_auth() -> AppResult<HttpResponse> {
     Err(anyhow::Error::msg(ERROR_TEXT).into_app_error_unauthorized())
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(start_never_auth);
+    cfg.service(web::resource("/login").route(web::get().to(start_never_auth)));
 }
