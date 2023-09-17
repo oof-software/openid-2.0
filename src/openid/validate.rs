@@ -1,8 +1,8 @@
 use anyhow::Context;
 use serde::Serialize;
 
-use super::constants::{OPENID_AUTH_NAMESPACE, OPENID_MODE_CHECK_AUTHENTICATION};
-use super::{PositiveAssertion, Provider};
+use crate::openid::constants::{OPENID_AUTH_NAMESPACE, OPENID_MODE_CHECK_AUTHENTICATION};
+use crate::openid::{PositiveAssertion, Provider};
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.11.4.2.2>
 #[derive(Debug, Default, Serialize)]

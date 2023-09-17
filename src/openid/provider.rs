@@ -2,10 +2,10 @@ use anyhow::Context;
 use roxmltree::Node;
 use serde::Serialize;
 
-use super::constants::{
+use crate::openid::constants::{
     OPENID_AUTH_NAMESPACE, OPENID_PRIORITY_ATTRIBUTE, OPENID_PROVIDER_IDENTIFIER,
 };
-use super::xml_util::*;
+use crate::openid::util::xml::*;
 
 const NAMESPACE_DEFAULT: &str = "xri://$xrd*($v*2.0)";
 const NAMESPACE_XRDS: &str = "xri://$xrds";

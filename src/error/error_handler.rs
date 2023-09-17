@@ -2,37 +2,48 @@ use actix_web::dev::ServiceResponse;
 use actix_web::middleware::{ErrorHandlerResponse, ErrorHandlers};
 use actix_web::{dev, ResponseError, Result};
 
-use super::{AppError, ErrorJson};
+use crate::error::error_json::ErrorJson;
+use crate::error::AppError;
+
+#[inline]
+fn is_generated_from<E, B>(res: &dev::ServiceResponse<B>) -> bool
+where
+    E: actix_web::error::ResponseError + 'static,
+{
+    res.response()
+        .error()
+        .and_then(|err| err.as_error::<E>())
+        .is_some()
+}
 
 #[allow(clippy::unnecessary_wraps)]
 fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-    let (req, res) = res.into_parts();
-
-    // App error is already good to go.
-    let app_error = res.error().and_then(|err| err.as_error::<AppError>());
-    if app_error.is_some() {
-        log::info!("[err-trace] to_json_error: it's an app error, let it through");
-        return Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
-            req,
-            res.map_into_left_body(),
-        )));
-    }
-
     // Sanity check, this should never happend because API endpoints should
     // always return `AppError` and never directly `ErrorJson`.
-    let json_error = res.error().and_then(|err| err.as_error::<ErrorJson>());
-    if json_error.is_some() {
-        log::error!("[trace] to_json_error: it's already an json error?");
+    //
+    // And we don't even expose ErrorJson, so this really shouldn't happen.
+    if is_generated_from::<ErrorJson, _>(&res) {
+        log::error!("[err-trace] to_json_error: it's a json error??!!? 😨");
     }
 
-    log::info!("[err-trace] to_json_error: it's some other error");
-    let err_json: ErrorJson = res
-        .error()
-        .map_or_else(|| res.status().into(), |err| err.into());
+    // App error is already good to go.
+    if is_generated_from::<AppError, _>(&res) {
+        log::info!("[err-trace] to_json_error: it's an app error, let it through 😏");
 
-    // Break the middleware chain and return our custom json response
+        // map_into_left_body means return the already generated response
+        return Ok(ErrorHandlerResponse::Response(res.map_into_left_body()));
+    };
+
+    // `res` is either the error response generated
+    // from a generic actix::Error or from an AppError (I guess).
+    let (req, res) = res.into_parts();
+
+    log::info!("[err-trace] to_json_error: it's some other error, convert it! 😈");
+    let err_json_response = ErrorJson::from_response(res).error_response();
+
+    // map_into_right_body means return this newly generated response
     Ok(ErrorHandlerResponse::Response(
-        ServiceResponse::new(req, err_json.error_response()).map_into_right_body(),
+        ServiceResponse::new(req, err_json_response).map_into_right_body(),
     ))
 }
 

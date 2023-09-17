@@ -5,7 +5,7 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::constants::OPENID_RESPONSE_NONCE_MAX_LEN;
+use crate::openid::constants::OPENID_RESPONSE_NONCE_MAX_LEN;
 
 /// 30 seconds between the user authorizing us and us processing
 /// the response seems reasonable.
@@ -13,8 +13,8 @@ const NONCE_MAX_AGE_MS: i64 = 30_000;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Nonce {
-    time: DateTime<Utc>,
-    salt: String,
+    pub(crate) time: DateTime<Utc>,
+    pub(crate) salt: String,
 }
 
 impl FromStr for Nonce {
@@ -64,9 +64,6 @@ impl Nonce {
     pub(crate) fn as_salt(&self) -> &str {
         &self.salt
     }
-    pub(crate) const fn new(salt: String, time: DateTime<Utc>) -> Nonce {
-        Nonce { time, salt }
-    }
 }
 
 impl<'de> Deserialize<'de> for Nonce {
@@ -86,5 +83,50 @@ impl Serialize for Nonce {
         S: serde::Serializer,
     {
         serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use anyhow::Context;
+    use chrono::NaiveDate;
+
+    use super::Nonce;
+
+    const NONCE: &str = "2023-09-15T11:23:46Z7RPb74voq1sqY2sKMcnOe/rxwQg=";
+
+    fn expected_nonce() -> anyhow::Result<Nonce> {
+        Ok(Nonce {
+            time: NaiveDate::from_ymd_opt(2023, 9, 15)
+                .context("invalid y-m-d")?
+                .and_hms_opt(11, 23, 46)
+                .context("invalid h-m-s")?
+                .and_utc(),
+            salt: "7RPb74voq1sqY2sKMcnOe/rxwQg=".to_string(),
+        })
+    }
+
+    #[test]
+    fn from_str_works() -> anyhow::Result<()> {
+        let parsed = Nonce::from_str(NONCE).context("deserialization failed")?;
+        let expected = expected_nonce().context("expected nonce invalid")?;
+
+        assert_eq!(parsed.time, expected.time);
+        assert_eq!(parsed.salt, expected.salt);
+
+        Ok(())
+    }
+
+    #[test]
+    fn to_string_works() -> anyhow::Result<()> {
+        let serialized = expected_nonce()
+            .context("expected nonce invalid")?
+            .to_string();
+
+        assert_eq!(serialized, NONCE);
+
+        Ok(())
     }
 }

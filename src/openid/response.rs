@@ -19,10 +19,10 @@ use std::borrow::Borrow;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
-use super::comma_separated::CommaSeparated;
-use super::constants::*;
-use super::nonce::Nonce;
-use super::Provider;
+use crate::openid::comma_separated::CommaSeparated;
+use crate::openid::constants::*;
+use crate::openid::nonce::Nonce;
+use crate::openid::Provider;
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.10.1>
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -198,7 +198,10 @@ mod test {
             .find(|(k, _)| k == OPENID_RESPONSE_NONCE)
             .context("nonce field not found")?;
 
-        let nonce = Nonce::new(TEST_PARAMS_NONCE_SALT.to_string(), Utc::now());
+        let nonce = Nonce {
+            salt: TEST_PARAMS_NONCE_SALT.to_string(),
+            time: Utc::now(),
+        };
 
         // This relies on `to_string` resulting in the same
         // representation as serialized with serde_urlencoded!

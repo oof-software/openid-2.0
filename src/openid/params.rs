@@ -1,7 +1,7 @@
 use anyhow::Context;
 
-use super::constants::*;
-use super::Provider;
+use crate::openid::constants::*;
+use crate::openid::Provider;
 
 /// Static params, missing `return_to` and `realm`.
 ///

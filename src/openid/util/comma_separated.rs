@@ -53,3 +53,38 @@ impl Serialize for CommaSeparated {
         serializer.serialize_str(&self.to_string())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::str::FromStr;
+
+    use anyhow::Context;
+
+    use super::CommaSeparated;
+
+    const SERIALIZED: &str = "a,b,c,d,e";
+    const DESERIALIZED: [&str; 5] = ["a", "b", "c", "d", "e"];
+
+    #[test]
+    fn from_str_works() -> anyhow::Result<()> {
+        let parsed = CommaSeparated::from_str(SERIALIZED).context("deserialization failed")?;
+        let parsed = parsed.into_inner();
+
+        assert_eq!(parsed.len(), DESERIALIZED.len());
+        for (actual, expected) in std::iter::zip(parsed, DESERIALIZED) {
+            assert_eq!(actual, expected);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn to_string_works() -> anyhow::Result<()> {
+        let serialized: Vec<String> = DESERIALIZED.iter().map(|v| v.to_string()).collect();
+        let serialized = CommaSeparated(serialized).to_string();
+
+        assert_eq!(serialized, SERIALIZED);
+
+        Ok(())
+    }
+}
