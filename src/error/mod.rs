@@ -37,8 +37,7 @@
 //! ```
 //!
 
-/// This macro is here to keep track of which error conversion
-/// and response generation (from errors).
+/// This macro is here to keep track of error conversion.
 macro_rules! err_trace {
     ($arg:tt) => ({
         #[cfg(feature = "err-trace")]
