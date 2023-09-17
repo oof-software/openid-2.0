@@ -3,8 +3,7 @@ use actix_web::web;
 mod auth;
 mod health;
 
-pub(crate) fn init() -> actix_web::Scope {
-    web::scope("/api")
-        .service(auth::init())
-        .service(health::init())
+pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(web::scope("/auth").configure(auth::configure))
+        .service(web::scope("/health").configure(health::configure));
 }

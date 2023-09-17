@@ -158,7 +158,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(web::Data::clone(&data))
             .wrap(error_handler())
-            .service(api::init())
+            .service(web::scope("/api").configure(api::configure))
     });
 
     server = server

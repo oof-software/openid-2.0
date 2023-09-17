@@ -23,9 +23,8 @@ pub(crate) async fn health_error() -> AppResult<HttpResponse> {
         .into_app_error_with_status(StatusCode::IM_A_TEAPOT))
 }
 
-pub(crate) fn init() -> actix_web::Scope {
-    web::scope("/health")
-        .service(health_live)
+pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(health_live)
         .service(health_ready)
-        .service(health_error)
+        .service(health_error);
 }

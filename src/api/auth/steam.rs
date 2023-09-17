@@ -84,8 +84,6 @@ pub(crate) async fn return_steam_auth(
     Ok(HttpResponse::Ok().json(response))
 }
 
-pub(crate) fn init() -> actix_web::Scope {
-    web::scope("/steam")
-        .service(start_steam_auth)
-        .service(return_steam_auth)
+pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(start_steam_auth).service(return_steam_auth);
 }
