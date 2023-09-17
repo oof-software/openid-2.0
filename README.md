@@ -22,6 +22,7 @@ Based on [`node-openid`](https://github.com/havard/node-openid) and tries to be 
 ### Relevant Documentation
 
 - [openid.net/specs/openid-authentication-2_0.html](https://openid.net/specs/openid-authentication-2_0.html) or [.txt](https://openid.net/specs/openid-authentication-2_0.txt)
+- [docs.oasis-open.org/xri/2.0/specs/cd02/xri-resolution-V2.0-cd-02.html](http://docs.oasis-open.org/xri/2.0/specs/cd02/xri-resolution-V2.0-cd-02.html)
 - [actix.rs/docs](https://actix.rs/docs)
 - [serde.rs](https://serde.rs/)
 - [docs.rs/tokio/latest/tokio/#feature-flags](https://docs.rs/tokio/latest/tokio/#feature-flags)
