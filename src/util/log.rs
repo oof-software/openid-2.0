@@ -7,7 +7,7 @@ pub(crate) fn init_logger() -> anyhow::Result<()> {
     let mut config = ConfigBuilder::default();
 
     config
-        .set_target_level(LevelFilter::Off)
+        .set_target_level(LevelFilter::Info)
         .set_location_level(LevelFilter::Off)
         .set_time_level(LevelFilter::Error)
         .set_time_format_custom(format_description!(
