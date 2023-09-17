@@ -55,7 +55,7 @@ impl ErrorJson {
 
     /// This is not implemented as a trait because it should not be exposed.
     pub(super) fn from_app_error(err: &AppError) -> ErrorJson {
-        log::info!("[err-trace] ErrorJson::from_app_error");
+        err_trace!("ErrorJson::from_app_error");
         err.inner.as_ref().map_or_else(
             || ErrorJson::from_status_code(err.status_code),
             |anyhow| ErrorJson::from_anyhow(anyhow, err.status_code),
@@ -69,7 +69,7 @@ impl ErrorJson {
     /// This consumes the [`actix_web::HttpResponse`] because it replaces it.
     #[inline]
     pub(super) fn from_response<B>(res: HttpResponse<B>) -> ErrorJson {
-        log::info!("[err-trace] ErrorJson::from_response");
+        err_trace!("ErrorJson::from_response");
         res.error().map_or_else(
             || ErrorJson::from_status_code(res.status()),
             ErrorJson::from_actix_error,
@@ -90,7 +90,7 @@ impl ResponseError for ErrorJson {
     }
 
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        log::info!("[err-trace] ErrorJson::error_response");
+        err_trace!("ErrorJson::error_response");
         HttpResponse::build(self.status_code).json(self)
     }
 }

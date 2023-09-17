@@ -40,7 +40,7 @@ pub(crate) trait IntoAppError: Sized {
 
 impl IntoAppError for anyhow::Error {
     fn into_app_error_with_status(self, status_code: StatusCode) -> AppError {
-        log::info!("[err-trace] IntoAppError for anyhow::Error");
+        err_trace!("IntoAppError for anyhow::Error");
         AppError {
             status_code,
             inner: Some(self),
@@ -51,7 +51,7 @@ impl IntoAppError for anyhow::Error {
 /// If no status code is given, use INTERNAL_SERVER_ERROR
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> AppError {
-        log::info!("[err-trace] AppError::From<anyhow::Error>");
+        err_trace!("AppError::From<anyhow::Error>");
         AppError {
             status_code: StatusCode::INTERNAL_SERVER_ERROR,
             inner: Some(err),
@@ -62,7 +62,7 @@ impl From<anyhow::Error> for AppError {
 /// If no error is given, use an empty error chain
 impl From<StatusCode> for AppError {
     fn from(status_code: StatusCode) -> AppError {
-        log::info!("[err-trace] AppError::From<StatusCode>");
+        err_trace!("AppError::From<StatusCode>");
         AppError {
             status_code,
             inner: None,
@@ -82,7 +82,7 @@ impl ResponseError for AppError {
     }
 
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        log::info!("[err-trace] AppError::error_response");
+        err_trace!("AppError::error_response");
         ErrorJson::from_app_error(self).error_response()
     }
 }

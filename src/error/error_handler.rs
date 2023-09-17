@@ -23,13 +23,12 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
     //
     // And we don't even expose ErrorJson, so this really shouldn't happen.
     if is_generated_from::<ErrorJson, _>(&res) {
-        log::error!("[err-trace] to_json_error: it's a json error??!!? 😨");
+        err_trace!("to_json_error: it's a json error??!!? 😨");
     }
 
     // App error is already good to go.
     if is_generated_from::<AppError, _>(&res) {
-        log::info!("[err-trace] to_json_error: it's an app error, let it through 😏");
-
+        err_trace!("to_json_error: it's an app error, let it through 😏");
         // map_into_left_body means return the already generated response
         return Ok(ErrorHandlerResponse::Response(res.map_into_left_body()));
     };
@@ -38,7 +37,7 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
     // from a generic actix::Error or from an AppError (I guess).
     let (req, res) = res.into_parts();
 
-    log::info!("[err-trace] to_json_error: it's some other error, convert it! 😈");
+    err_trace!("to_json_error: it's some other error, convert it! 😈");
     let err_json_response = ErrorJson::from_response(res).error_response();
 
     // map_into_right_body means return this newly generated response

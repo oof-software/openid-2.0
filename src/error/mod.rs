@@ -35,6 +35,23 @@
 //! ```
 //!
 
+/// This macro is here to keep track of which error conversion
+/// and response generation (from errors).
+macro_rules! err_trace {
+    ($arg:tt) => ({
+        #[cfg(feature = "err-trace")]
+        {
+            ::log::info!(::std::concat!("[err-trace] ", $arg));
+        }
+    });
+    ($arg:tt, $($args:tt)+) => ({
+        #[cfg(feature = "err-trace")]
+        {
+            ::log::info!(::std::concat!("[err-trace] ", $arg), $($args)+);
+        }
+    });
+}
+
 mod app_error;
 mod error_handler;
 mod error_json;
