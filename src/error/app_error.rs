@@ -95,14 +95,6 @@ pub(crate) trait IntoAppError: Sized {
     );
 }
 
-pub(crate) trait IntoAppResult<T>: Sized {
-    fn into_app_result(self) -> std::result::Result<T, AppError>;
-    fn into_app_result_with_status(
-        self,
-        status_code: StatusCode,
-    ) -> std::result::Result<T, AppError>;
-}
-
 impl IntoAppError for anyhow::Error {
     fn into_app_error(self) -> AppError {
         log::info!("[trace] into_app_error for anyhow::Error");
@@ -117,20 +109,6 @@ impl IntoAppError for anyhow::Error {
             status_code,
             inner: Some(self),
         }
-    }
-}
-impl<T> IntoAppResult<T> for anyhow::Result<T> {
-    fn into_app_result(self) -> std::result::Result<T, AppError> {
-        log::info!("[trace] into_app_result for anyhow::Result");
-        self.map_err(|err| err.into_app_error())
-    }
-
-    fn into_app_result_with_status(
-        self,
-        status_code: StatusCode,
-    ) -> std::result::Result<T, AppError> {
-        log::info!("[trace] into_app_result_with_status for anyhow::Result");
-        self.map_err(|err| err.into_app_error_with_status(status_code))
     }
 }
 
