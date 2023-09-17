@@ -11,7 +11,7 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
     // App error is already good to go.
     let app_error = res.error().and_then(|err| err.as_error::<AppError>());
     if app_error.is_some() {
-        log::info!("[trace] to_json_error: it's an app error, let it through");
+        log::info!("[err-trace] to_json_error: it's an app error, let it through");
         return Ok(ErrorHandlerResponse::Response(ServiceResponse::new(
             req,
             res.map_into_left_body(),
@@ -25,7 +25,7 @@ fn to_json_error<B: 'static>(res: dev::ServiceResponse<B>) -> Result<ErrorHandle
         log::error!("[trace] to_json_error: it's already an json error?");
     }
 
-    log::info!("[trace] to_json_error: it's some other error");
+    log::info!("[err-trace] to_json_error: it's some other error");
     let err_json: ErrorJson = res
         .error()
         .map_or_else(|| res.status().into(), |err| err.into());
