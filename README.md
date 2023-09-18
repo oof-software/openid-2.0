@@ -39,6 +39,7 @@ Based on [`node-openid`](https://github.com/havard/node-openid) and tries to be 
 - Better names for packages, e. g., `openid/xml` is not a good name at all
 - Move some of the constants in `openid/constants` into an enum or something
 - Implement full serde serializer and deserializer for key values
+  - See `src/openid/util/comma_separated_serde.rs`
   - [openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.1](https://openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.1)
   - [github.com/nox/serde_urlencoded](https://github.com/nox/serde_urlencoded)
 
