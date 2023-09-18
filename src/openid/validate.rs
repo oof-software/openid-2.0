@@ -18,7 +18,7 @@ impl TryFrom<&KeyValues> for VerifyResponse {
     type Error = anyhow::Error;
     fn try_from(kvs: &KeyValues) -> Result<Self, Self::Error> {
         let namespace = kvs
-            .get("namespace")
+            .get("ns")
             .context("missing field namespace")?
             .to_string();
         let is_valid = kvs
