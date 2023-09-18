@@ -55,7 +55,7 @@ impl ErrorJson {
         ErrorJson {
             error_chain: vec![],
             status_cat: ErrorJson::status_to_cat(status_code),
-            status_code: status_code,
+            status_code,
         }
     }
 
