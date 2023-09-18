@@ -14,8 +14,6 @@
 //! }
 //! ```
 
-use std::borrow::Borrow;
-
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
@@ -115,7 +113,7 @@ impl PositiveAssertion {
         if self.claimed_id != self.identity {
             anyhow::bail!("claimed identity doesn't match identity");
         }
-        if !has_fields(self.signed_fields.borrow(), &EXPECTED_SIGNED_FIELDS) {
+        if !has_fields(&self.signed_fields, &EXPECTED_SIGNED_FIELDS) {
             anyhow::bail!("fields that should be signed aren't signed");
         }
         if self.signature.is_empty() {

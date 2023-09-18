@@ -1,10 +1,12 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.1>
+/// - <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.1>
+/// - <https://github.com/havard/node-openid/blob/672ea6e1b25e96c4a8e4f9deb74d38487c85ac32/openid.js#L220-L240>
 ///
 /// # Example
 ///
@@ -24,6 +26,13 @@ pub(crate) struct KeyValues(HashMap<String, String>);
 impl KeyValues {
     pub(crate) fn into_inner(self) -> HashMap<String, String> {
         self.0
+    }
+}
+
+impl Deref for KeyValues {
+    type Target = HashMap<String, String>;
+    fn deref(&self) -> &HashMap<String, String> {
+        &self.0
     }
 }
 

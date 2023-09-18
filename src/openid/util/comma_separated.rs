@@ -1,4 +1,5 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
+use std::ops::Deref;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,13 @@ impl CommaSeparated {
     }
 }
 
+impl Deref for CommaSeparated {
+    type Target = Vec<String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl FromStr for CommaSeparated {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -25,12 +33,6 @@ impl FromStr for CommaSeparated {
 impl ToString for CommaSeparated {
     fn to_string(&self) -> String {
         self.0.join(",")
-    }
-}
-
-impl Borrow<[String]> for CommaSeparated {
-    fn borrow(&self) -> &[String] {
-        self.0.as_slice()
     }
 }
 

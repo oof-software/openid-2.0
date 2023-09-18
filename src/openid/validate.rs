@@ -1,7 +1,10 @@
+use std::str::FromStr;
+
 use anyhow::Context;
 use serde::Serialize;
 
-use crate::openid::constants::{OPENID_AUTH_NAMESPACE, OPENID_MODE_CHECK_AUTHENTICATION};
+use super::key_values::KeyValues;
+use crate::openid::constants::OPENID_MODE_CHECK_AUTHENTICATION;
 use crate::openid::{PositiveAssertion, Provider};
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.11.4.2.2>
@@ -11,34 +14,23 @@ pub(crate) struct VerifyResponse {
     is_valid: bool,
 }
 
-/// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.4.1.1>
-///
-/// <https://github.com/havard/node-openid/blob/672ea6e1b25e96c4a8e4f9deb74d38487c85ac32/openid.js#L220-L240>
-fn parse_key_value_form(text: &str) -> anyhow::Result<VerifyResponse> {
-    // Trimming the text is probebly illegal but whatever ¯\_(ツ)_/¯
-    let lines = text.trim().split('\n');
-
-    let kv_pairs: Option<Vec<_>> = lines.map(|line| line.split_once(':')).collect();
-    let kv_pairs = kv_pairs.context("key value form contains a line without a semicolon")?;
-
-    let mut response = VerifyResponse::default();
-    for (k, v) in kv_pairs {
-        match k {
-            "ns" => {
-                if v != OPENID_AUTH_NAMESPACE {
-                    anyhow::bail!("response field ns contains an invalid value")
-                }
-                response.namespace = OPENID_AUTH_NAMESPACE.to_string();
-            }
-            "is_valid" => {
-                response.is_valid = v
-                    .parse()
-                    .context("response field is_valid is not a valid bool")?;
-            }
-            _ => anyhow::bail!("response contains unknown field {}", k),
-        }
+impl TryFrom<&KeyValues> for VerifyResponse {
+    type Error = anyhow::Error;
+    fn try_from(kvs: &KeyValues) -> Result<Self, Self::Error> {
+        let namespace = kvs
+            .get("namespace")
+            .context("missing field namespace")?
+            .to_string();
+        let is_valid = kvs
+            .get("is_valid")
+            .context("missing field is_valid")?
+            .parse()
+            .context("field is_valid does not contain a bool")?;
+        Ok(VerifyResponse {
+            namespace,
+            is_valid,
+        })
     }
-    Ok(response)
 }
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.11.4.2>
@@ -66,25 +58,33 @@ pub(crate) async fn verify_against_provider(
         .await
         .context("provider returned an invalid response")?;
 
-    let parsed = parse_key_value_form(&text).context("couldn't parse response from provider")?;
+    let key_values = KeyValues::from_str(&text)
+        .context("couldn't parse response from provider as key-values")?;
+    let verification = VerifyResponse::try_from(&key_values)
+        .context("couldn't parse key-values as verification response")?;
 
-    Ok(parsed)
+    Ok(verification)
 }
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use anyhow::Context;
 
     use crate::openid::constants::OPENID_AUTH_NAMESPACE;
-    use crate::openid::validate::parse_key_value_form;
+    use crate::openid::key_values::KeyValues;
+    use crate::openid::VerifyResponse;
 
     #[test]
     fn key_value_deserialize() -> anyhow::Result<()> {
         const TEXT: &str = "ns:http://specs.openid.net/auth/2.0\nis_valid:true\n";
 
-        let parsed = parse_key_value_form(TEXT).context("couldn't parse key value form")?;
-        assert_eq!(parsed.is_valid, true);
-        assert_eq!(parsed.namespace, OPENID_AUTH_NAMESPACE);
+        let parsed = KeyValues::from_str(TEXT).context("invalid key values")?;
+        let verification = VerifyResponse::try_from(&parsed).context("invalid response")?;
+
+        assert_eq!(verification.is_valid, true);
+        assert_eq!(verification.namespace, OPENID_AUTH_NAMESPACE);
 
         Ok(())
     }
