@@ -26,6 +26,11 @@ Based on [`node-openid`](https://github.com/havard/node-openid) and tries to be 
 
 ## Notes
 
+### Utilities
+
+- Generate N bytes of random data as a base64 string
+  - `echo $(openssl rand -base64 64 | tr -d '\n ')`
+
 ### Relevant Documentation
 
 - [openid.net/specs/openid-authentication-2_0.html](https://openid.net/specs/openid-authentication-2_0.html) or [.txt](https://openid.net/specs/openid-authentication-2_0.txt)
