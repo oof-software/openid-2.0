@@ -6,12 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-session = { version = "0.8.0", features = ["redis-actor-session", "cookie-session"] }
 actix-web = { version = "4" }
 anyhow = { version = "1" }
 base64 = { version = "0" }
 chrono = { version = "0" }
 chrono-humanize = { version = "0" }
 log = { version = "0" }
+parking_lot = { version = "0" }
 rand = { version = "0" }
 reqwest = { version = "0" }
 roxmltree = { version = "0" }
@@ -19,6 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_urlencoded = { version = "0" }
 simplelog = { version = "0" }
+steam_api_concurrent = { git = "https://github.com/oof-software/steam_api_concurrent.git", rev = "c7262c1" }
 tokio = { version = "1", features = ["full"] }
 
 dotenv = { version = "0" }
@@ -29,7 +32,7 @@ thiserror = { version = "1" }
 time = { version = "0" }
 
 [features]
-default = ["err-trace"]
+default = []
 err-trace = []
 comma-separated-serde = []
 
