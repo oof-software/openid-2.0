@@ -14,6 +14,12 @@ pub(crate) struct VerifyResponse {
     is_valid: bool,
 }
 
+impl VerifyResponse {
+    pub const fn is_valid(&self) -> bool {
+        self.is_valid
+    }
+}
+
 impl TryFrom<&KeyValues> for VerifyResponse {
     type Error = anyhow::Error;
     fn try_from(kvs: &KeyValues) -> Result<Self, Self::Error> {

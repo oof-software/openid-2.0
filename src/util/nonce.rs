@@ -14,10 +14,11 @@
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 use chrono::Utc;
+use parking_lot::Mutex;
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const NONCE_BYTES: usize = 36;
@@ -28,7 +29,8 @@ const NONCE_BASE64_LEN: usize = (NONCE_BYTES * 4) / 3;
 /// seems reasonable.
 const NONCE_MAX_AGE_MS: i64 = 5_000_000;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(transparent)]
 pub(crate) struct Nonce {
     inner: String,
 }
@@ -88,13 +90,10 @@ pub(crate) struct NonceSet {
 impl NonceSet {
     pub(crate) fn remove_expired_nonces(&self) {
         let now = Utc::now().timestamp_millis();
-        self.inner
-            .lock()
-            .unwrap()
-            .retain(|_, meta| !meta.is_expired(now));
+        self.inner.lock().retain(|_, meta| !meta.is_expired(now));
     }
     pub(crate) fn validate_and_remove(&self, nonce: &str) -> Result<(), NonceError> {
-        let Some(nonce) = self.inner.lock().unwrap().remove(nonce) else {
+        let Some(nonce) = self.inner.lock().remove(nonce) else {
             return Err(NonceError::Invalid);
         };
         if nonce.is_expired(Utc::now().timestamp_millis()) {
@@ -102,12 +101,34 @@ impl NonceSet {
         }
         Ok(())
     }
+    pub(crate) fn validate(&self, nonce: &str) -> Result<(), NonceError> {
+        if self.inner.lock().contains_key(nonce) {
+            Ok(())
+        } else {
+            Err(NonceError::Expired)
+        }
+    }
+    pub(crate) fn replace(&self, old: &str) -> Result<Nonce, NonceError> {
+        let new_nonce = Nonce::random();
+        let new_meta = Metadata::new(&new_nonce);
+        let new_nonce_copy = new_nonce.clone();
+
+        {
+            let mut lock = self.inner.lock();
+            if lock.remove(old).is_none() {
+                return Err(NonceError::Invalid);
+            }
+            let _ = lock.insert(new_nonce, new_meta);
+        }
+
+        Ok(new_nonce_copy)
+    }
     pub(crate) fn insert_new(&self) -> Nonce {
         let nonce = Nonce::random();
         let meta = Metadata::new(&nonce);
         let nonce_copy = nonce.clone();
 
-        self.inner.lock().unwrap().insert(nonce, meta);
+        let _ = self.inner.lock().insert(nonce, meta);
 
         nonce_copy
     }

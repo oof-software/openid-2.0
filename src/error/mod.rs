@@ -57,5 +57,5 @@ mod app_error;
 mod error_handler;
 mod error_json;
 
-pub(crate) use app_error::{AppError, AppResult, IntoAppError};
+pub(crate) use app_error::{AppError, AppResponse, AppResult, IntoAppError};
 pub(crate) use error_handler::error_handler;

@@ -73,7 +73,11 @@ mod openid;
 mod openid_next;
 mod util;
 
-use actix_web::{web, App, HttpServer};
+use actix_session::config::CookieContentSecurity;
+use actix_session::storage::{CookieSessionStore, RedisActorSessionStore};
+use actix_session::SessionMiddleware;
+use actix_web::cookie::{self, Key, SameSite};
+use actix_web::{middleware, web, App, HttpServer};
 use anyhow::Context;
 use openid::{make_auth_req_url, Provider};
 use util::nonce::NonceSet;
@@ -85,15 +89,21 @@ const SOCKET: &str = "127.0.0.1:8080";
 const STEAM_OPENID_LOGIN: &str = "https://steamcommunity.com/openid";
 const REALM: &str = "http://localhost:8080";
 const RETURN_TO: &str = "http://localhost:8080/api/auth/steam/callback";
-const LOGIN: &str = "http://localhost:8080/api/auth/steam/login";
 
 struct SteamState {
     provider: Provider,
-    auth_url: String,
     nonces: NonceSet,
+    api: steam_api_concurrent::Client,
 }
 impl SteamState {
     pub(crate) async fn new(client: &reqwest::Client) -> anyhow::Result<SteamState> {
+        let api_key = dotenv::var("STEAM_API_KEY").unwrap();
+        let api = steam_api_concurrent::ClientOptions::new()
+            .api_key(api_key)
+            .build()
+            .await
+            .context("couldn't prepare steam api client")?;
+
         let resp = client.get(STEAM_OPENID_LOGIN).send().await;
         let resp = resp.context("couldn't fetch steam openid service")?;
 
@@ -105,15 +115,12 @@ impl SteamState {
         let provider =
             Provider::from_xml(&xml).context("couldn't parse response xml as service")?;
 
-        let auth_url = make_auth_req_url(&provider, REALM, RETURN_TO)
-            .context("couldn't create auth request url")?;
-
         let nonces = NonceSet::new();
 
         Ok(SteamState {
             provider,
-            auth_url,
             nonces,
+            api,
         })
     }
     pub(crate) fn auth_url_with_nonce(&self, nonce: &str) -> anyhow::Result<String> {
@@ -123,6 +130,26 @@ impl SteamState {
             .context("couldn't create auth request url with custom nonce")?;
         Ok(auth_url)
     }
+}
+
+fn load_cookie_key() -> anyhow::Result<cookie::Key> {
+    use base64::engine::general_purpose::STANDARD as Base64;
+    use base64::Engine;
+
+    let key_b64 =
+        dotenv::var("COOKIE_KEY_BASE64").context("missing COOKIE_KEY_BASE64 env variable")?;
+
+    let mut key_data = vec![0u8; 128];
+    let len = Base64
+        .decode_slice(key_b64, &mut key_data)
+        .context("couldn't decode COOKIE_KEY_BASE64")?;
+
+    if len != 64 {
+        anyhow::bail!("key in COOKIE_KEY_BASE64 is too small ({} < {})", 64, len);
+    }
+
+    cookie::Key::try_from(&key_data[..64])
+        .context("couldn't construct cookie key from COOKIE_KEY_BASE64 data")
 }
 
 struct State {
@@ -145,19 +172,48 @@ impl State {
     }
 }
 
+fn create_redis_session_mw(url: &str, key: Key) -> SessionMiddleware<RedisActorSessionStore> {
+    SessionMiddleware::builder(RedisActorSessionStore::new(url), key)
+        .cookie_http_only(false)
+        .cookie_same_site(SameSite::Lax)
+        .cookie_name("session-id".to_string())
+        .cookie_content_security(CookieContentSecurity::Private)
+        .build()
+}
+
+fn _create_cookie_session_mw(key: Key) -> SessionMiddleware<CookieSessionStore> {
+    SessionMiddleware::builder(CookieSessionStore::default(), key)
+        .cookie_http_only(false)
+        .cookie_same_site(SameSite::Lax)
+        .cookie_name("session-data".to_string())
+        .cookie_content_security(CookieContentSecurity::Private)
+        .build()
+}
+
+fn create_logger_mw() -> middleware::Logger {
+    middleware::Logger::new(r#"%Ts %bB %{r}a [%r -> %s] "%{Referer}i" "%{User-Agent}i""#)
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
+    let _ = dotenv::dotenv().context("load .env environment")?;
+
     util::log::init_logger().context("couldn't initialize logger")?;
     log::info!("initialized logger");
 
+    let cookie_key = load_cookie_key().context("couldn't load cookie key")?;
     let state = State::new().await.context("couldn't create app state")?;
     let data = web::Data::new(state);
     log::info!("created app state");
 
+    let redis_url = dotenv::var("REDIS_URL").context("load REDIS_URL env variable")?;
+
     let mut server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::clone(&data))
+            .wrap(create_logger_mw())
             .wrap(error_handler())
+            .wrap(create_redis_session_mw(&redis_url, cookie_key.clone()))
             .service(web::scope("/api").configure(api::configure))
     });
 
@@ -166,8 +222,20 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("couldn't bind to socket `{}`", SOCKET))?;
 
     log::info!("server is listening on {}", SOCKET);
-    log::info!("visit {} and get you will get redirected to steam", LOGIN);
-    log::info!("after authorization you get redirected to {}", RETURN_TO);
+
+    log::info!("here is a list of endpoints:");
+    for (endpoint, description) in [
+        ("/api/auth/steam/login", "initiate login to steam"),
+        ("/api/auth/steam/callback", "verify assertion from steam"),
+        ("/api/auth/steam/logout", "logout from steam"),
+        ("/api/auth/never/login", "initiate login to never"),
+        ("/api/health/live", "health check"),
+        ("/api/health/ready", "health check"),
+        ("/api/health/error", "error example"),
+        ("/api/health/cookies", "view cookies decrypted"),
+    ] {
+        log::info!("- http://{}{}: {}", SOCKET, endpoint, description);
+    }
 
     server
         .workers(1)

@@ -1,4 +1,5 @@
 pub(crate) mod comma_separated;
+#[cfg(feature = "comma-separated-serde")]
 pub(crate) mod comma_separated_serde;
 #[cfg(feature = "comma-separated-serde")]
 pub(crate) mod comma_separated_serde_2;

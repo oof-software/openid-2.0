@@ -22,6 +22,8 @@ use crate::openid::constants::*;
 use crate::openid::nonce::Nonce;
 use crate::openid::Provider;
 
+pub(crate) const STEAM_IDENTITY_PREFIX: &str = "https://steamcommunity.com/openid/id/";
+
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.10.1>
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct PositiveAssertion {
@@ -124,8 +126,6 @@ impl PositiveAssertion {
     }
     /// Steam specific validation
     pub(crate) fn validate_steam(&self) -> anyhow::Result<()> {
-        const STEAM_IDENTITY_PREFIX: &str = "https://steamcommunity.com/openid/id/";
-
         let claimed_id_id: u64 = self
             .claimed_id
             .strip_prefix(STEAM_IDENTITY_PREFIX)
@@ -150,9 +150,13 @@ impl PositiveAssertion {
 
         Ok(())
     }
+
     pub(crate) fn set_mode(&mut self, mode: &str) {
         self.mode.clear();
         self.mode.push_str(mode);
+    }
+    pub(crate) fn claimed_id(&self) -> &str {
+        &self.claimed_id
     }
 }
 
