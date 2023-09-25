@@ -41,7 +41,7 @@ where
         for part in parts {
             // TODO: Error conversion
             match part.parse() {
-                Err(_) => return Err(anyhow!("couldn't parse the thingy ¯\\_(ツ)_/¯")),
+                Err(_) => return Err(anyhow!("couldn't parse the thingy ( ˘︹˘ )")),
                 Ok(parsed) => buffer.push(parsed),
             };
         }
