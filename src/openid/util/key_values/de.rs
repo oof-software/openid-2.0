@@ -81,7 +81,7 @@ impl<'de> Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
-    fn parse_key(&mut self) -> Result<&'de str> {
+    fn consume_key(&mut self) -> Result<&'de str> {
         if self.consumed_key {
             return Err(Error::ExpectedValue);
         }
@@ -93,9 +93,9 @@ impl<'de> Deserializer<'de> {
         Ok(key)
     }
     /// In the case of a HashMap, a value can be used as a 'key'
-    fn parse_value(&mut self) -> Result<&'de str> {
+    fn consume_value(&mut self) -> Result<&'de str> {
         if !self.consumed_key {
-            return self.parse_key();
+            return self.consume_key();
         }
         let Some((value, remainder)) = self.inner.split_once('\n') else {
             return Err(Error::ExpectedNewline);
@@ -111,9 +111,9 @@ impl<'de> Deserializer<'de> {
 /// depending on what Rust types the deserializer is able to consume as input.
 ///
 /// This basic deserializer supports only `from_str`.
-pub fn from_str<'a, T>(s: &'a str) -> Result<T>
+pub fn from_str<'de, T>(s: &'de str) -> Result<T>
 where
-    T: Deserialize<'a>,
+    T: Deserialize<'de>,
 {
     T::deserialize(&mut Deserializer::from_str(s))
 }
@@ -124,7 +124,7 @@ macro_rules! deserialize_from_str {
         where
             V: de::Visitor<'de>,
         {
-            let value: $type = self.parse_value()?.parse()?;
+            let value: $type = self.consume_value()?.parse()?;
             visitor.$visit_method(value)
         }
     };
@@ -170,7 +170,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        let value = self.parse_value()?;
+        let value = self.consume_value()?;
         visitor.visit_borrowed_str(value)
     }
 
@@ -186,7 +186,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: de::Visitor<'de>,
     {
         // same as usual, get the value
-        let value = self.parse_value()?;
+        let value = self.consume_value()?;
         // iterate over chars because unicode stuff
         let mut chars = value.chars();
 
@@ -249,7 +249,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        let value = self.parse_value()?;
+        let value = self.consume_value()?;
         if value.is_empty() {
             return visitor.visit_none();
         }
@@ -260,7 +260,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        let value = self.parse_value()?;
+        let value = self.consume_value()?;
         if value.is_empty() {
             return visitor.visit_unit();
         }
@@ -313,7 +313,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        let key = self.parse_key()?;
+        let key = self.consume_key()?;
         visitor.visit_str(key)
     }
 }
