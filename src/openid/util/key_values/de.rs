@@ -92,16 +92,35 @@ impl<'de> Deserializer<'de> {
         self.consumed_key = true;
         Ok(key)
     }
+    fn peek_key(&self) -> Result<&'de str> {
+        if self.consumed_key {
+            return Err(Error::ExpectedValue);
+        }
+        let Some((key, _)) = self.inner.split_once(':') else {
+            return Err(Error::ExpectedColon);
+        };
+        Ok(key)
+    }
+
     /// In the case of a HashMap, a value can be used as a 'key'
     fn consume_value(&mut self) -> Result<&'de str> {
         if !self.consumed_key {
             return self.consume_key();
         }
         let Some((value, remainder)) = self.inner.split_once('\n') else {
-            return Err(Error::ExpectedNewline);
+            return Err(Error::Eof);
         };
         self.inner = remainder;
         self.consumed_key = false;
+        Ok(value)
+    }
+    fn peek_value(&self) -> Result<&'de str> {
+        if !self.consumed_key {
+            return self.peek_key();
+        }
+        let Some((value, _)) = self.inner.split_once('\n') else {
+            return Err(Error::Eof);
+        };
         Ok(value)
     }
 }
@@ -249,8 +268,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: de::Visitor<'de>,
     {
-        let value = self.consume_value()?;
+        let value = self.peek_value()?;
         if value.is_empty() {
+            let _ = self.consume_value()?;
             return visitor.visit_none();
         }
         visitor.visit_some(self)
@@ -369,6 +389,9 @@ mod test {
     macro_rules! assert_parse_error {
         ($input:literal) => {{
             let parsed = from_str::<HashMap<String, String>>($input);
+            if !parsed.is_err() {
+                println!("parsed: {:?}", parsed);
+            }
             assert!(parsed.is_err());
         }};
     }
@@ -477,7 +500,12 @@ mod test {
 
     #[test]
     fn deserialize_duplicate_identifier() -> anyhow::Result<()> {
-        assert_parse_error!("a:1\na:-1\n");
+        let input = "a:1\na:-1\n";
+
+        let parsed = from_str::<HashMap<String, i32>>(input).context("parsing failed")?;
+
+        assert_eq!(parsed.get("a"), Some(&-1));
+
         Ok(())
     }
 
@@ -499,8 +527,23 @@ mod test {
     }
 
     #[test]
+    fn deserialize_duplicate_identifier_sturct() -> anyhow::Result<()> {
+        let input = "a:true\na:false\n";
+
+        #[derive(Deserialize)]
+        struct Test {
+            a: bool,
+        }
+
+        let parsed = from_str::<Test>(input);
+        assert!(parsed.is_err());
+
+        Ok(())
+    }
+
+    #[test]
     fn deserialize_option_struct() -> anyhow::Result<()> {
-        let input = "a:\nb:\nc:\n";
+        let input = "a:\nb:42\nc:\n";
 
         #[derive(Deserialize)]
         struct Test {
@@ -511,7 +554,7 @@ mod test {
 
         let parsed = from_str::<Test>(input).context("parsing failed")?;
         assert_eq!(parsed.a, None);
-        assert_eq!(parsed.b, None);
+        assert_eq!(parsed.b, Some(42));
         assert_eq!(parsed.c, None);
 
         Ok(())

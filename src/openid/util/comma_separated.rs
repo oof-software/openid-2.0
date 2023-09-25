@@ -1,42 +1,76 @@
 use std::borrow::Cow;
+use std::fmt::{Display, Write};
 use std::ops::Deref;
 use std::str::FromStr;
 
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 /// - Serialize `["a", "b", "c"]` into `"a,b,c"`
 /// - Deserialize `"a,b,c"` into `["a", "b", "c"]`
-#[derive(Debug, Clone)]
-pub(crate) struct CommaSeparated(Vec<String>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CommaSeparated<T>(Vec<T>);
 
-impl CommaSeparated {
-    pub(crate) fn into_inner(self) -> Vec<String> {
+impl<T> CommaSeparated<T> {
+    pub(crate) fn into_inner(self) -> Vec<T> {
         self.0
     }
 }
 
-impl Deref for CommaSeparated {
-    type Target = Vec<String>;
+impl<T> Deref for CommaSeparated<T> {
+    type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl FromStr for CommaSeparated {
+impl<T> FromStr for CommaSeparated<T>
+where
+    T: FromStr,
+{
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts = s.split(',').map(|s| s.to_string());
-        Ok(CommaSeparated(parts.collect()))
+        if s.is_empty() {
+            return Ok(CommaSeparated(Vec::new()));
+        }
+
+        let len = s.chars().filter(|&c| c == ',').count();
+        let mut buffer: Vec<T> = Vec::with_capacity(len + 1);
+
+        let parts = s.split(',');
+        for part in parts {
+            // TODO: Error conversion
+            match part.parse() {
+                Err(_) => return Err(anyhow!("couldn't parse the thingy ¯\\_(ツ)_/¯")),
+                Ok(parsed) => buffer.push(parsed),
+            };
+        }
+
+        Ok(CommaSeparated(buffer))
     }
 }
 
-impl ToString for CommaSeparated {
+impl<T> ToString for CommaSeparated<T>
+where
+    T: Display,
+{
     fn to_string(&self) -> String {
-        self.0.join(",")
+        let mut buffer = String::new();
+        let mut iter = self.0.iter();
+        if let Some(first) = iter.next() {
+            write!(&mut buffer, "{}", first).unwrap();
+            for next in iter {
+                write!(&mut buffer, ",{}", next).unwrap();
+            }
+        }
+        buffer
     }
 }
 
-impl<'de> Deserialize<'de> for CommaSeparated {
+impl<'de, T> Deserialize<'de> for CommaSeparated<T>
+where
+    T: FromStr,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -47,7 +81,10 @@ impl<'de> Deserialize<'de> for CommaSeparated {
     }
 }
 
-impl Serialize for CommaSeparated {
+impl<T> Serialize for CommaSeparated<T>
+where
+    T: Display,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -61,6 +98,8 @@ mod test {
     use std::str::FromStr;
 
     use anyhow::Context;
+    use serde::{Deserialize, Serialize};
+    use steam_api_concurrent::SteamId;
 
     use super::CommaSeparated;
 
@@ -69,7 +108,8 @@ mod test {
 
     #[test]
     fn from_str_works() -> anyhow::Result<()> {
-        let parsed = CommaSeparated::from_str(SERIALIZED).context("deserialization failed")?;
+        let parsed =
+            CommaSeparated::<String>::from_str(SERIALIZED).context("deserialization failed")?;
         let parsed = parsed.into_inner();
 
         assert_eq!(parsed.len(), DESERIALIZED.len());
@@ -87,6 +127,44 @@ mod test {
 
         assert_eq!(serialized, SERIALIZED);
 
+        Ok(())
+    }
+
+    #[test]
+    fn parses_steam_id_url() -> anyhow::Result<()> {
+        #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
+        struct Test {
+            steam_ids: CommaSeparated<SteamId>,
+        }
+
+        let input = "&steam_ids=76561198181282063,76561198181282063,76561198181282063";
+        let result = Test {
+            steam_ids: CommaSeparated(vec![
+                SteamId(76561198181282063),
+                SteamId(76561198181282063),
+                SteamId(76561198181282063),
+            ]),
+        };
+        println!("{:?}", serde_urlencoded::to_string(&result));
+
+        assert_eq!(Ok(result), serde_urlencoded::from_str(input));
+        Ok(())
+    }
+
+    #[test]
+    fn parses_steam_id_url_empty() -> anyhow::Result<()> {
+        #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
+        struct Test {
+            steam_ids: CommaSeparated<SteamId>,
+        }
+
+        let input = "&steam_ids=";
+        let result = Test {
+            steam_ids: CommaSeparated(vec![]),
+        };
+        println!("{:?}", serde_urlencoded::to_string(&result));
+
+        assert_eq!(Ok(result), serde_urlencoded::from_str(input));
         Ok(())
     }
 }
