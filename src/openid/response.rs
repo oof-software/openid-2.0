@@ -65,7 +65,7 @@ pub(crate) struct PositiveAssertion {
 
     /// See [`crate::openid::constants::OPENID_SIGNED_FIELDS`]
     #[serde(rename = "openid.signed")]
-    signed_fields: CommaSeparated,
+    signed_fields: CommaSeparated<String>,
 
     /// See [`crate::openid::constants::OPENID_SIGNATURE`]
     #[serde(rename = "openid.sig")]

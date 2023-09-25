@@ -1929,7 +1929,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "steam_api_concurrent"
 version = "0.1.0"
-source = "git+https://github.com/oof-software/steam_api_concurrent.git?rev=c7262c1#c7262c149139d912f09849e6b450168104908b50"
+source = "git+https://github.com/oof-software/steam_api_concurrent.git?rev=ff8cbde#ff8cbde95793803c8981b0dbcc9e51bbbf51a2a0"
 dependencies = [
  "chrono",
  "dotenv",
