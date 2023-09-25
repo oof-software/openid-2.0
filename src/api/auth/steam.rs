@@ -31,6 +31,7 @@ trait AuthSession {
     fn logout(&self) -> anyhow::Result<SteamId>;
 }
 
+// TODO: Clean this up
 impl AuthSession for actix_session::Session {
     fn authenticated(&self) -> Option<SteamId> {
         let state = self.steam_auth_state().ok().flatten()?;
@@ -82,6 +83,7 @@ impl AuthSession for actix_session::Session {
     }
 }
 
+/// Initiate OpenID 2.0 authentication with Steam
 pub(crate) async fn start_steam_auth(
     session: actix_session::Session,
     data: web::Data<State>,
@@ -166,6 +168,8 @@ async fn validate_positive_assertion(
     Ok(validation_result)
 }
 
+/// Process a possible OpenID 2.0 Positive Assertion
+/// after the user has granted **authentication**.
 pub(crate) async fn return_steam_auth(
     session: actix_session::Session,
     data: web::Data<State>,
@@ -180,13 +184,13 @@ pub(crate) async fn return_steam_auth(
             nonce
         }
         Some(SteamAuthState::Authenticated { .. }) => {
-            // the user is already authenticated, send him back to the home page
+            // the user is already authenticated...?
             return Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
                 .insert_header((http::header::LOCATION.as_str(), "/api/health/cookies"))
                 .finish());
         }
         None => {
-            // The user should visit the login page first
+            // the user should visit the login page first
             return Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
                 .insert_header((http::header::LOCATION.as_str(), "/api/auth/steam/login"))
                 .finish());
@@ -220,6 +224,9 @@ pub(crate) async fn return_steam_auth(
         .map_err(|err| err.into_app_error_bad_request())?;
 
     // make another request to validate the positive assertion
+    //
+    // without this, another user could spoof a valid
+    // openid endpoint and impersonate other users!
     let validation_result = validate_positive_assertion(&query.assertion, &data)
         .await
         .map_err(|err| err.into_app_error_bad_request())?;
@@ -234,6 +241,8 @@ pub(crate) async fn return_steam_auth(
         .authenticate(steam_id)
         .context("couldn't update session to authenticate")?;
 
+    // TODO: This should be exposed by other endpoints and then
+    //       they should be called by the frontent.
     let steam_api = &data.steam.api;
     let resp = steam_api
         .get_player_summaries(Cow::from(&[steam_id][..]))
