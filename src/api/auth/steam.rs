@@ -1,11 +1,9 @@
-use std::borrow::Cow;
 use std::str::FromStr;
 
 use actix_web::{http, web, HttpResponse};
 use anyhow::Context;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use steam_api_concurrent::api::PlayerSummary;
 use steam_api_concurrent::SteamId;
 
 use crate::api::session::{AuthSession, SteamAuthState};
@@ -78,7 +76,6 @@ struct CallbackResponse<'a> {
     response: &'a VerifyResponse,
     custom_nonce: &'a str,
     assertion: &'a PositiveAssertion,
-    profile: Option<&'a PlayerSummary>,
 }
 
 async fn validate_positive_assertion(
@@ -163,8 +160,17 @@ pub(crate) async fn return_steam_auth(
         .await
         .map_err(|err| err.into_app_error_bad_request())?;
 
+    let response = CallbackResponse {
+        response: &validation_result,
+        custom_nonce: &query.custom_nonce,
+        assertion: &query.assertion,
+    };
+
     // the positive assertion was not genuine but has been forged
     if !validation_result.is_valid() {
+        log::warn!("someone tried to forge a request!");
+        log::warn!("query: {:?}", query);
+        log::warn!("validation: {:?}", validation_result);
         return Ok(HttpResponse::BadRequest().finish());
     }
 
@@ -172,25 +178,6 @@ pub(crate) async fn return_steam_auth(
     session
         .authenticate(steam_id)
         .context("couldn't update session to authenticate")?;
-
-    // TODO: This should be exposed by other endpoints and then
-    //       they should be called by the frontent.
-    let steam_api = &data.steam.api;
-    let resp = steam_api
-        .get_player_summaries(Cow::from(&[steam_id][..]))
-        .await;
-
-    if let Err(err) = resp.as_ref() {
-        log::warn!("couldn't fetch steam profile for {}: {:?}", steam_id, err);
-    }
-
-    let profile = resp.as_ref().ok().and_then(|map| map.get(&steam_id));
-    let response = CallbackResponse {
-        response: &validation_result,
-        custom_nonce: &query.custom_nonce,
-        assertion: &query.assertion,
-        profile,
-    };
 
     Ok(HttpResponse::Ok().json(response))
 }
