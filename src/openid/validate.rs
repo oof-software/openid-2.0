@@ -1,15 +1,14 @@
-use std::str::FromStr;
-
 use anyhow::Context;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use super::key_values::KeyValues;
+use super::key_values;
 use crate::openid::constants::OPENID_MODE_CHECK_AUTHENTICATION;
 use crate::openid::{PositiveAssertion, Provider};
 
 /// <https://openid.net/specs/openid-authentication-2_0.html#rfc.section.11.4.2.2>
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct VerifyResponse {
+    #[serde(rename(deserialize = "ns"))]
     namespace: String,
     is_valid: bool,
 }
@@ -17,25 +16,6 @@ pub(crate) struct VerifyResponse {
 impl VerifyResponse {
     pub const fn is_valid(&self) -> bool {
         self.is_valid
-    }
-}
-
-impl TryFrom<&KeyValues> for VerifyResponse {
-    type Error = anyhow::Error;
-    fn try_from(kvs: &KeyValues) -> Result<Self, Self::Error> {
-        let namespace = kvs
-            .get("ns")
-            .context("missing field namespace")?
-            .to_string();
-        let is_valid = kvs
-            .get("is_valid")
-            .context("missing field is_valid")?
-            .parse()
-            .context("field is_valid does not contain a bool")?;
-        Ok(VerifyResponse {
-            namespace,
-            is_valid,
-        })
     }
 }
 
@@ -64,33 +44,28 @@ pub(crate) async fn verify_against_provider(
         .await
         .context("provider returned an invalid response")?;
 
-    let key_values = KeyValues::from_str(&text)
+    let verification: VerifyResponse = key_values::from_str(&text)
         .context("couldn't parse response from provider as key-values")?;
-    let verification = VerifyResponse::try_from(&key_values)
-        .context("couldn't parse key-values as verification response")?;
 
     Ok(verification)
 }
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
 
     use anyhow::Context;
 
     use crate::openid::constants::OPENID_AUTH_NAMESPACE;
-    use crate::openid::key_values::KeyValues;
-    use crate::openid::VerifyResponse;
+    use crate::openid::{key_values, VerifyResponse};
 
     #[test]
     fn key_value_deserialize() -> anyhow::Result<()> {
         const TEXT: &str = "ns:http://specs.openid.net/auth/2.0\nis_valid:true\n";
 
-        let parsed = KeyValues::from_str(TEXT).context("invalid key values")?;
-        let verification = VerifyResponse::try_from(&parsed).context("invalid response")?;
+        let parsed: VerifyResponse = key_values::from_str(TEXT).context("invalid key values")?;
 
-        assert_eq!(verification.is_valid, true);
-        assert_eq!(verification.namespace, OPENID_AUTH_NAMESPACE);
+        assert_eq!(parsed.is_valid, true);
+        assert_eq!(parsed.namespace, OPENID_AUTH_NAMESPACE);
 
         Ok(())
     }

@@ -34,7 +34,6 @@ time = { version = "0" }
 [features]
 default = []
 err-trace = []
-comma-separated-serde = []
 
 [profile.release]
 strip = true
