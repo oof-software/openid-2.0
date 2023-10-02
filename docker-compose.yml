@@ -21,6 +21,24 @@ services:
     volumes:
       - complainer_cache:/data/
 
+  complainer_api:
+    image: registry.debian.home.arpa/complainer-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      STEAM_API_KEY: ${STEAM_API_KEY}
+      COOKIE_KEY_BASE64: ${COOKIE_KEY_BASE64}
+      POSTGRES_HOST: complainer_db:5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      REDIS_URL: complainer_cache:6379
+      OPENID_REALM: ${OPENID_REALM}
+      OPENID_RETURN_TO: ${OPENID_RETURN_TO}
+      OPENID_SUCCESS_REDIRECT: ${OPENID_SUCCESS_REDIRECT}
+      OPENID_LOGOUT_REDIRECT: ${OPENID_LOGOUT_REDIRECT}
+
 volumes:
   complainer_db:
   complainer_cache:

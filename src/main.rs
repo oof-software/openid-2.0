@@ -84,16 +84,35 @@ use util::nonce::NonceSet;
 
 use crate::error::error_handler;
 
-const SOCKET: &str = "127.0.0.1:8080";
+const SOCKET: &str = "0.0.0.0:8080";
 
 const STEAM_OPENID_LOGIN: &str = "https://steamcommunity.com/openid";
-const REALM: &str = "http://localhost:8080";
-const RETURN_TO: &str = "http://localhost:8080/api/auth/steam/callback";
+
+pub(crate) struct OpenIdState {
+    pub(crate) realm: String,
+    pub(crate) return_to: String,
+    pub(crate) success_redirect: String,
+    pub(crate) logout_redirect: String,
+}
+impl OpenIdState {
+    pub(crate) fn new() -> anyhow::Result<OpenIdState> {
+        Ok(OpenIdState {
+            realm: dotenv::var("OPENID_REALM")?,
+            return_to: dotenv::var("OPENID_RETURN_TO")?,
+            success_redirect: dotenv::var("OPENID_SUCCESS_REDIRECT")?,
+            logout_redirect: dotenv::var("OPENID_LOGOUT_REDIRECT")?,
+        })
+    }
+    pub(crate) fn return_to_abs(&self) -> anyhow::Result<String> {
+        Ok(format!("{}{}", self.realm, self.return_to))
+    }
+}
 
 struct SteamState {
     provider: Provider,
     nonces: NonceSet,
     api: steam_api_concurrent::Client,
+    open_id: OpenIdState,
 }
 impl SteamState {
     pub(crate) async fn new(client: &reqwest::Client) -> anyhow::Result<SteamState> {
@@ -116,17 +135,20 @@ impl SteamState {
             Provider::from_xml(&xml).context("couldn't parse response xml as service")?;
 
         let nonces = NonceSet::new();
+        let open_id = OpenIdState::new()?;
 
         Ok(SteamState {
             provider,
             nonces,
             api,
+            open_id,
         })
     }
     pub(crate) fn auth_url_with_nonce(&self, nonce: &str) -> anyhow::Result<String> {
-        let return_to = reqwest::Url::parse_with_params(RETURN_TO, [("custom_nonce", nonce)])
+        let return_to = self.open_id.return_to_abs()?;
+        let return_to = reqwest::Url::parse_with_params(&return_to, [("custom_nonce", nonce)])
             .context("couldn't parse return_to url with custom nonce")?;
-        let auth_url = make_auth_req_url(&self.provider, REALM, return_to.as_str())
+        let auth_url = make_auth_req_url(&self.provider, &self.open_id.realm, return_to.as_str())
             .context("couldn't create auth request url with custom nonce")?;
         Ok(auth_url)
     }
@@ -196,7 +218,9 @@ fn create_logger_mw() -> middleware::Logger {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    let _ = dotenv::dotenv().context("load .env environment")?;
+    if dotenv::dotenv().is_err() {
+        log::warn!("no .env file found");
+    }
 
     util::log::init_logger().context("couldn't initialize logger")?;
     log::info!("initialized logger");

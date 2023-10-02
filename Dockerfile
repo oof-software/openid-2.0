@@ -17,7 +17,12 @@ RUN touch ./src/main.rs
 RUN cargo build --release
 
 # Run the built binary
-FROM debian:bookworm-slim
+FROM debian:bookworm
+
+RUN \
+    apt-get update && \
+    apt-get install -y openssl ca-certificates && \
+    apt-get clean
 
 COPY --from=builder /complainer_api/target/release/complainer_api /usr/local/bin/
 CMD ["/usr/local/bin/complainer_api"]

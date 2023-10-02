@@ -54,10 +54,14 @@ pub(crate) async fn start_steam_auth(
         .finish())
 }
 
-pub(crate) async fn logout_steam_auth(session: actix_session::Session) -> AppResult<HttpResponse> {
+pub(crate) async fn logout_steam_auth(
+    session: actix_session::Session,
+    data: web::Data<State>,
+) -> AppResult<HttpResponse> {
     session.logout().context("couldn't logout")?;
+    let redirect_to = data.steam.open_id.logout_redirect.as_str();
     Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
-        .insert_header((http::header::LOCATION.as_str(), "/api/health/cookies"))
+        .insert_header((http::header::LOCATION.as_str(), redirect_to))
         .finish())
 }
 
@@ -160,12 +164,6 @@ pub(crate) async fn return_steam_auth(
         .await
         .map_err(|err| err.into_app_error_bad_request())?;
 
-    let response = CallbackResponse {
-        response: &validation_result,
-        custom_nonce: &query.custom_nonce,
-        assertion: &query.assertion,
-    };
-
     // the positive assertion was not genuine but has been forged
     if !validation_result.is_valid() {
         log::warn!("someone tried to forge a request!");
@@ -179,7 +177,10 @@ pub(crate) async fn return_steam_auth(
         .authenticate(steam_id)
         .context("couldn't update session to authenticate")?;
 
-    Ok(HttpResponse::Ok().json(response))
+    let redirect_to = data.steam.open_id.success_redirect.as_str();
+    Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
+        .insert_header((http::header::LOCATION.as_str(), redirect_to))
+        .finish())
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {

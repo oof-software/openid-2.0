@@ -21,7 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 serde_urlencoded = { version = "0" }
 simplelog = { version = "0" }
-steam_api_concurrent = { git = "https://github.com/oof-software/steam_api_concurrent.git", rev = "ff8cbde" }
+steam_api_concurrent = { git = "https://github.com/oof-software/steam_api_concurrent.git", rev = "9627ee0019d0eac9a2ac62bd2ad191b44b28270a" }
 tokio = { version = "1", features = ["full"] }
 
 dotenv = { version = "0" }
