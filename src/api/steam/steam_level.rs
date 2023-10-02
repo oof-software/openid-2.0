@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use serde::Deserialize;
@@ -7,15 +5,14 @@ use steam_api_concurrent::SteamId;
 
 use crate::api::session::AuthSession;
 use crate::error::AppResponse;
-use crate::openid::comma_separated::CommaSeparated;
 use crate::State;
 
 #[derive(Deserialize)]
 pub(crate) struct Query {
-    steam_ids: CommaSeparated<SteamId>,
+    steam_id: SteamId,
 }
 
-pub(crate) async fn player_bans(
+pub(crate) async fn steam_level(
     session: actix_session::Session,
     data: web::Data<State>,
     query: web::Query<Query>,
@@ -24,18 +21,12 @@ pub(crate) async fn player_bans(
         return Ok(HttpResponse::Unauthorized().finish());
     }
 
-    let steam_ids = query.into_inner().steam_ids.into_inner();
-    if steam_ids.is_empty() {
-        return Ok(HttpResponse::BadRequest().finish());
-    }
-
-    let steam_ids = Cow::Owned(steam_ids);
-    let resp = data.steam.api.get_player_bans(steam_ids).await;
+    let resp = data.steam.api.get_player_steam_level(query.steam_id).await;
     let resp = resp.context("couldn't fetch from steam api")?;
 
     Ok(HttpResponse::Ok().json(resp.into_inner()))
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/player-bans").route(web::get().to(player_bans)));
+    cfg.service(web::resource("/steam-level").route(web::get().to(steam_level)));
 }

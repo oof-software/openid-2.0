@@ -15,7 +15,7 @@ pub(crate) struct Query {
     steam_ids: CommaSeparated<SteamId>,
 }
 
-pub(crate) async fn player_bans(
+pub(crate) async fn player_summaries(
     session: actix_session::Session,
     data: web::Data<State>,
     query: web::Query<Query>,
@@ -30,12 +30,12 @@ pub(crate) async fn player_bans(
     }
 
     let steam_ids = Cow::Owned(steam_ids);
-    let resp = data.steam.api.get_player_bans(steam_ids).await;
+    let resp = data.steam.api.get_player_summaries(steam_ids).await;
     let resp = resp.context("couldn't fetch from steam api")?;
 
     Ok(HttpResponse::Ok().json(resp.into_inner()))
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/player-bans").route(web::get().to(player_bans)));
+    cfg.service(web::resource("/player-summaries").route(web::get().to(player_summaries)));
 }
