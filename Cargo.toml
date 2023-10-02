@@ -1,5 +1,5 @@
 [package]
-name = "openid_2_0"
+name = "complainer_api"
 version = "0.1.0"
 edition = "2021"
 
