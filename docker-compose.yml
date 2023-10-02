@@ -1,3 +1,4 @@
+name: complainer-dev
 services:
   complainer_db:
     image: postgres
