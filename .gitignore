@@ -1,3 +1,5 @@
-/target
-/misc
+/target/
+/misc/
 /.vscode/launch.json
+/.env
+/build-and-upload.sh

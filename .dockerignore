@@ -1,0 +1,10 @@
+/.vscode/
+/.git/
+/target/
+/misc/
+/.dockerignore
+/.gitignore
+/build-and-upload.sh
+/docker-compose.yml
+/Dockerfile
+/README.md
