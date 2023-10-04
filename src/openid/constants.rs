@@ -86,7 +86,7 @@ pub(crate) const OPENID_OP_ENDPOINT: &str = "openid.op_endpoint";
 /// The nonce MUST start with the current time on the server,
 /// and MAY contain additional ASCII characters in the range 33-126 inclusive (printable non-whitespace characters).
 ///
-/// The date and time MUST be formatted as specified in section 5.6 of [RFC3339], with the following restrictions:
+/// The date and time MUST be formatted as specified in section 5.6 of RFC3339, with the following restrictions:
 /// - All times must be in the UTC timezone, indicated with a `Z`
 /// - No fractional seconds are allowed
 ///

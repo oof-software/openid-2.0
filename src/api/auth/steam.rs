@@ -21,17 +21,18 @@ pub(crate) async fn start_steam_auth(
     let state = session.steam_auth_state()?;
 
     let nonce = match state.as_ref() {
-        Some(SteamAuthState::Redirected { nonce }) => {
+        Some(SteamAuthState::Redirected { .. }) => {
             // the user should've been redirected to steam and not be on this page
             // give him a new nonce, remove the old one and move on.
             session
-                .validate_replace_nonce(&data, nonce.as_str())
+                .replace_session(&data)
                 .context("couldn't refresh nonce")?
         }
         Some(SteamAuthState::Authenticated { .. }) => {
             // the user is already authenticated, send him back to the home page
+            let redirect_to = data.steam.open_id.success_redirect.as_str();
             return Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
-                .insert_header((http::header::LOCATION.as_str(), "/api/health/cookies"))
+                .insert_header((http::header::LOCATION.as_str(), redirect_to))
                 .finish());
         }
         None => {
@@ -118,8 +119,9 @@ pub(crate) async fn return_steam_auth(
         }
         Some(SteamAuthState::Authenticated { .. }) => {
             // the user is already authenticated...?
+            let redirect_to = data.steam.open_id.success_redirect.as_str();
             return Ok(HttpResponse::build(StatusCode::TEMPORARY_REDIRECT)
-                .insert_header((http::header::LOCATION.as_str(), "/api/health/cookies"))
+                .insert_header((http::header::LOCATION.as_str(), redirect_to))
                 .finish());
         }
         None => {

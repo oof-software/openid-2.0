@@ -6,6 +6,8 @@ use crate::util::nonce::Nonce;
 use crate::State;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+#[serde(tag = "type")]
 pub(crate) enum SteamAuthState {
     Redirected { nonce: Nonce },
     Authenticated { id: SteamId },
@@ -14,6 +16,7 @@ pub(crate) enum SteamAuthState {
 pub(crate) trait AuthSession {
     fn steam_auth_state(&self) -> anyhow::Result<Option<SteamAuthState>>;
     fn redirected(&self) -> Option<Nonce>;
+    fn replace_session(&self, state: &State) -> anyhow::Result<Nonce>;
     fn authenticated(&self) -> Option<SteamId>;
     fn validate_replace_nonce(&self, state: &State, old: &str) -> anyhow::Result<Nonce>;
     fn insert_new_nonce(&self, state: &State) -> anyhow::Result<Nonce>;
@@ -36,6 +39,16 @@ impl AuthSession for actix_session::Session {
             SteamAuthState::Redirected { nonce } => Some(nonce),
             SteamAuthState::Authenticated { .. } => None,
         }
+    }
+    fn replace_session(&self, state: &State) -> anyhow::Result<Nonce> {
+        let nonces = &state.steam.nonces;
+        let nonce = nonces.insert_new();
+        let state = SteamAuthState::Redirected {
+            nonce: nonce.clone(),
+        };
+        self.insert("steam-auth-state", state)
+            .context("couldn't serialize nonce to json")?;
+        Ok(nonce)
     }
     fn logout(&self) -> anyhow::Result<SteamId> {
         let id = self.authenticated().context("not logged in")?;

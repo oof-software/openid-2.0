@@ -88,10 +88,13 @@ pub(crate) struct NonceSet {
     inner: Mutex<HashMap<Nonce, Metadata>>,
 }
 impl NonceSet {
+    /// Remove all expired nonces
     pub(crate) fn remove_expired_nonces(&self) {
         let now = Utc::now().timestamp_millis();
         self.inner.lock().retain(|_, meta| !meta.is_expired(now));
     }
+
+    /// Validate the nonce and remove it, if it is valid
     pub(crate) fn validate_and_remove(&self, nonce: &str) -> Result<(), NonceError> {
         let Some(nonce) = self.inner.lock().remove(nonce) else {
             return Err(NonceError::Invalid);
@@ -101,6 +104,8 @@ impl NonceSet {
         }
         Ok(())
     }
+
+    /// Check if the nonce is valid (as in not expired)
     pub(crate) fn validate(&self, nonce: &str) -> Result<(), NonceError> {
         if self.inner.lock().contains_key(nonce) {
             Ok(())
@@ -108,6 +113,8 @@ impl NonceSet {
             Err(NonceError::Expired)
         }
     }
+
+    /// Look for the given nonce and replace it
     pub(crate) fn replace(&self, old: &str) -> Result<Nonce, NonceError> {
         let new_nonce = Nonce::random();
         let new_meta = Metadata::new(&new_nonce);
@@ -123,6 +130,8 @@ impl NonceSet {
 
         Ok(new_nonce_copy)
     }
+
+    /// Insert a new nonce
     pub(crate) fn insert_new(&self) -> Nonce {
         let nonce = Nonce::random();
         let meta = Metadata::new(&nonce);
@@ -132,6 +141,8 @@ impl NonceSet {
 
         nonce_copy
     }
+
+    /// Create a new thingy
     pub(crate) fn new() -> NonceSet {
         NonceSet {
             inner: Mutex::new(HashMap::with_capacity(128)),

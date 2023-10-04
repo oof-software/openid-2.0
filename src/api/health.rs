@@ -1,8 +1,6 @@
-use std::ops::Deref;
-
 use actix_web::{web, HttpResponse};
-use reqwest::StatusCode;
 
+use super::session::AuthSession;
 use crate::error::{AppResult, IntoAppError};
 
 pub(crate) async fn health_live() -> AppResult<HttpResponse> {
@@ -19,12 +17,13 @@ pub(crate) async fn health_error() -> AppResult<HttpResponse> {
         .context("lost focus 😵")
         .context("fell over 🤾🏽‍♀️")
         .context("hit the floor 🤕")
-        .into_app_error_with_status(StatusCode::IM_A_TEAPOT))
+        .into_app_error_im_a_teapot())
 }
 
 /// Let the user view the encrypted cookies
 pub(crate) async fn health_cookies(session: actix_session::Session) -> AppResult<HttpResponse> {
-    Ok(HttpResponse::Ok().json(session.entries().deref()))
+    let auth_state = session.steam_auth_state()?;
+    Ok(HttpResponse::Ok().json(&auth_state))
 }
 
 pub(crate) fn configure(cfg: &mut web::ServiceConfig) {
